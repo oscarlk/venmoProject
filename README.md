@@ -1,1 +1,2 @@
 - using Conda env to run backend
+- client secret and gmail token are included in gitignore
