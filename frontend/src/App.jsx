@@ -1,26 +1,23 @@
-import { useState } from 'react'
 import './App.css'
-import Avatar from '@mui/material/Avatar';
-import Container from '@mui/material/Container';
-
-
-
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import SignOut from './pages/SignOut/SignOut';
+import SignIn from './pages/SignIn/SignIn';
+import Dashboard from './pages/Dashboard/Dashboard';
 
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <>
-      <Container maxWidth="lg">
-    
-          I just farted and it was really smelly
-          <Avatar>JJ</Avatar>
-      
-      </Container>
-     
+       <Router>
+            <Routes>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/signout" element={<SignOut />} />
+                <Route path="/signin" element={<SignIn />} />
+            </Routes>
+        </Router>
     </>
   )
 }
 
-export default App
+export default App;
