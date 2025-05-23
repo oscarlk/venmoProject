@@ -12,8 +12,6 @@ export default function SignOutOverlay() {
      
    function GroupOrientation() {
        return (
-
-        
            <ButtonGroup
              orientation="vertical"
              aria-label="Vertical button group"
@@ -21,14 +19,12 @@ export default function SignOutOverlay() {
            >
              {buttons}
            </ButtonGroup>
-         
        );
      }
    
 
 return (
     <>
-        
             <IconButton onClick={() => setOpen(true)}>
                 <Avatar>JJ</Avatar>
             </IconButton>
@@ -46,7 +42,6 @@ return (
                     <GroupOrientation />
                 </DialogContent>
             </Dialog>
-     
     </>
 );
 }
