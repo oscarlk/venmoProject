@@ -6,19 +6,9 @@ from datetime import datetime, timedelta
 from constants import (
     PAID_QUERY_PARAMS,
     REQUEST_QUERY_PARAMS,
-    PAID_CHARGE_QUERY_PARAMS
+    PAID_CHARGE_QUERY_PARAMS,
+    PAYMENT_QUERY_PARAMS
 )
-
-#old dev auth
-# gmail = None
-
-# def init_gmail():
-#     global gmail
-#     if gmail is None:
-#         gmail = Gmail()
-
-# #init gmail
-# init_gmail()
 
 #take all you paid subjects and then run this regex pattern on it to get relevant messages pattern = r"You paid ([\w\s]+) \$([\d,.]+)"
 def extract_requests(requestMessages):
@@ -94,6 +84,37 @@ def update_paid_charge_message(paidMessages, request_messages):
                     request['datePaid'] = paidMessage.date
                     request['dateDifferenceSeconds'] = (datetime.fromisoformat(request['datePaid']) - datetime.fromisoformat(request['dateRequested'])).total_seconds()
 
+def average_payback_time(request_messages):
+    request_count = len(request_messages)
+    total_seconds = 0
+    if request_count == 0:
+        return 0
+    for request in request_messages:
+        if request['dateDifferenceSeconds'] is not None:
+            total_seconds += request['dateDifferenceSeconds']
+    average_seconds = total_seconds / request_count
+    return average_seconds
+
+def extact_payments(paymentMessages):
+    stored_payments = []
+    name_and_amount_pattern = r"(.+?) paid (?:you|your) \$(\d+(?:\.\d{2})?)(?:\s+request)?"
+    item_pattern = r"paid you \$ \d+ \. \d+ (.+?) See transaction"
+    for payment in paymentMessages:
+        # Extract name and amount from the subject
+        name_and_amount_match = re.search(name_and_amount_pattern, payment.subject, re.IGNORECASE)
+        item_match = re.search(item_pattern, payment.snippet, re.IGNORECASE)
+        if name_and_amount_match:
+            stored_payments.append({
+                "Name": name_and_amount_match.group(1).strip(),
+                "Amount": float(name_and_amount_match.group(2)),
+                "Requested Item": item_match.group(1).strip() if item_match else "Emoji probably present",
+                # "Subject": message.subject,
+                "dateRequested": payment.date,
+                # "Preview": message.snippet,
+                "datePaid": None,
+                "dateDifferenceSeconds": None
+            })
+    return stored_payments
 #function that returns venmo data
 def get_venmo_data():
     #authentication, needs to be modified when creating unique id
@@ -104,16 +125,28 @@ def get_venmo_data():
     except Exception as e:
         raise Exception(f"Gmail authentication failed for user {str(e)}")
 
-    updated_request_messages = extract_requests(gmail.get_messages(query=construct_query(REQUEST_QUERY_PARAMS)))
+    # get messages from gmail
+    paid_messages = gmail.get_messages(query=construct_query(PAID_QUERY_PARAMS))
+    paid_charge_messages = gmail.get_messages(query=construct_query(PAID_CHARGE_QUERY_PARAMS))
 
-    update_paid_message(gmail.get_messages(query=construct_query(PAID_QUERY_PARAMS)), updated_request_messages)
-    update_paid_charge_message(gmail.get_messages(query=construct_query(PAID_CHARGE_QUERY_PARAMS)), updated_request_messages)
+    requests = extract_requests(gmail.get_messages(query=construct_query(REQUEST_QUERY_PARAMS)))
+    payments = extact_payments(gmail.get_messages(query=construct_query(PAYMENT_QUERY_PARAMS)))
+    
+    # update requests object with your payments
+    update_paid_message(paid_messages, requests)
+    update_paid_charge_message(paid_charge_messages, requests)
 
-    for request in updated_request_messages:
-        print(request)
+    # for request in requests:
+    #     print(request)
+    
+    #update final object
+    # final object returned for api call, return at the end?
+    final_object = {}
+    final_object['requestCount'] = len(requests)
+    final_object['paidCount'] = len(paid_messages) + len(paid_charge_messages)
+    final_object['averagePaybackTime'] = average_payback_time(requests)
+    final_object['paynentsReceived'] = len(payments)
 
+    print(final_object)
 
 get_venmo_data()
-
-# final object returned for api call, return at the end?
-final_object = {}
