@@ -15,7 +15,6 @@ const columns = [
     id: 'note',
     label: 'Note',
     minWidth: 170,
-    align: 'right',
     format: (value) => value.toLocaleString('en-US'),
   },
   {

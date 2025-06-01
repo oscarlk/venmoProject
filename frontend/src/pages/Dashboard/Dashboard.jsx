@@ -36,7 +36,7 @@ const Dashboard = () => {
             <Box rowSpacing= {1} sx={{ mt: 3, mb: 4 }} > 
                 <Grid container spacing={2} rowSpacing={4} alignItems={"stretch"}> 
                     {/* Top Row */}
-                    <Grid size={3}>
+                    <Grid item size={3}>
                         <Card >
                             <Div>{"Average Payment Completion"}</Div>
                             <Typography variant="h1" component="h1" color="textPrimary" sx={{ mt: 1 }}>
@@ -47,7 +47,7 @@ const Dashboard = () => {
                             </Typography>
                         </Card>
                     </Grid>
-                    <Grid size={3}>
+                    <Grid item size={3}>
                         <Card>
                             <Div>{"Total Transactions"}</Div>
                             <Typography variant="h1" component="h1" color="textPrimary" sx={{ mt: 1 }}>
@@ -72,7 +72,7 @@ const Dashboard = () => {
                             </Box>
                         </Card>
                     </Grid>
-                    <Grid size={3}>
+                    <Grid item size={3}>
                         <Card>
                             <Div>{"Top people who paid you"}</Div>
                             <BarChart
@@ -84,7 +84,7 @@ const Dashboard = () => {
 
                         </Card>
                     </Grid>
-                    <Grid size={3}>
+                    <Grid item size={3}>
                         <Card>
                             <Div>{"Top people you paid"}</Div>
                             <BarChart
@@ -100,14 +100,14 @@ const Dashboard = () => {
                 <Grid container spacing={2} rowSpacing={4} sx={{mt: 1}}> 
                 
                     {/* Bottom Row */}
-                    <Grid size={6}>
+                    <Grid item size={6}>
                         <Card>
                         <Div>{"Transaction History"}</Div>
                         <TransactionTable />
                             
                         </Card>
                     </Grid>
-                    <Grid size={6}>
+                    <Grid item size={6}>
                         <Card>
                             <Div>{"Your 6 Month Spending Totals"}</Div>
                             <LineChart
