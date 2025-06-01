@@ -1,9 +1,11 @@
 from flask import Flask
+from read_emails import get_venmo_data
 app = Flask(__name__)
 
-@app.route('/getAverageTime')
-def get_average_time():
-    return {"average_time": "Hello World"}
+@app.route('/getVenmoData')
+def get_venmo_data():
+    obj = get_venmo_data()
+    return obj
 
 @app.route('/')
 def home():
