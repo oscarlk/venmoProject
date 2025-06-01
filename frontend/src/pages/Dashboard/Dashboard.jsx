@@ -11,6 +11,7 @@ import { Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { BarChart } from '@mui/x-charts';
 import { LineChart } from '@mui/x-charts/LineChart';
+import TransactionTable from '../../components/TransactionTable/TransactionTable';
 
 const Div = styled('div')(({ theme }) => ({
     ...theme.typography.button,
@@ -70,7 +71,11 @@ const Dashboard = () => {
                 
                     {/* Bottom Row */}
                     <Grid size={6}>
-                        <Card>Transaction History</Card>
+                        <Card>
+                        <Div>{"Transaction History"}</Div>
+                        <TransactionTable />
+                            
+                        </Card>
                     </Grid>
                     <Grid size={6}>
                         <Card>Your 6 month transaction history
