@@ -4,7 +4,7 @@ import SignOutOverlay from '../SignOut/SignOutOverlay';
 
 const NavBar = () => {
   return (
-    <AppBar position="static" color="#000" elevation={1}>
+    <AppBar position="static" color="#000" elevation={1} >
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
         
         <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
