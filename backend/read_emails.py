@@ -29,9 +29,9 @@ def extract_requests(requestMessages):
         if match:
             # Store the relevant information
             stored_requests.append({
-                "Name": match.group(1).strip(),
-                "Amount": float(match.group(2).replace(",", "")),
-                "Requested Item": preview_match.group(1).strip() if preview_match else "Emoji probably present",
+                "name": match.group(1).strip(),
+                "amount": float(match.group(2).replace(",", "")),
+                "requestedItem": preview_match.group(1).strip() if preview_match else "Emoji probably present",
                 "dateRequested": message.date,
                 "datePaid": None,
                 "dateDifferenceSeconds": None
@@ -55,13 +55,13 @@ def update_paid_message(paidMessages, request_messages, all_transactions):
 
             # Check for a matching request
             for request in request_messages:
-                if (request['Name'] == paid_name and request['Amount'] == paid_amount):
+                if (request['name'] == paid_name and request['amount'] == paid_amount):
                     request['datePaid'] = paidMessage.date
                     request['dateDifferenceSeconds'] = (datetime.fromisoformat(request['datePaid']) - datetime.fromisoformat(request['dateRequested'])).total_seconds()
             # Add the transaction to all_transactions
             all_transactions.append({
-                "Name": paid_name,
-                "Amount": paid_amount,
+                "name": paid_name,
+                "amount": paid_amount,
                 "dateRequested": paidMessage.date,
                 "theyPaidYou": False,
                 "item": item_match.group(1).strip() if item_match else "Emoji probably present",
@@ -83,12 +83,12 @@ def update_paid_charge_message(paidMessages, request_messages, all_transactions)
 
             # Check for a matching request
             for request in request_messages:
-                if (request['Name'] == paid_name and request['Amount'] == paid_amount):
+                if (request['name'] == paid_name and request['amount'] == paid_amount):
                     request['datePaid'] = paidMessage.date
                     request['dateDifferenceSeconds'] = (datetime.fromisoformat(request['datePaid']) - datetime.fromisoformat(request['dateRequested'])).total_seconds()
             all_transactions.append({
-                "Name": paid_name,
-                "Amount": paid_amount,
+                "name": paid_name,
+                "amount": paid_amount,
                 "dateRequested": paidMessage.date,
                 "theyPaidYou": False,
                 "item": item_match.group(1).strip() if item_match else "Emoji probably present",
@@ -117,16 +117,16 @@ def extact_payments(paymentMessages, all_transactions):
         item_match = re.search(item_pattern, payment.snippet, re.IGNORECASE)
         if name_and_amount_match:
             stored_payments.append({
-                "Name": name_and_amount_match.group(1).strip(),
-                "Amount": float(name_and_amount_match.group(2).replace(",", "")),
-                "Requested Item": item_match.group(1).strip() if item_match else "Emoji probably present",
+                "name": name_and_amount_match.group(1).strip(),
+                "amount": float(name_and_amount_match.group(2).replace(",", "")),
+                "requestedItem": item_match.group(1).strip() if item_match else "Emoji probably present",
                 "dateRequested": payment.date,
                 "datePaid": None,
                 "dateDifferenceSeconds": None
             })
             all_transactions.append({
-                "Name": name_and_amount_match.group(1).strip(),
-                "Amount": float(name_and_amount_match.group(2).replace(",", "")),
+                "name": name_and_amount_match.group(1).strip(),
+                "amount": float(name_and_amount_match.group(2).replace(",", "")),
                 "dateRequested": payment.date,
                 "theyPaidYou": True,
                 "item": item_match.group(1).strip() if item_match else "Emoji probably present",
@@ -140,8 +140,8 @@ def get_top_transactions(transactions, they_paid=True):
     # Count transactions by name and amount
     name_totals = {}
     for t in filtered_transactions:
-        name = t['Name']
-        amount = t['Amount']
+        name = t['name']
+        amount = t['amount']
         name_totals[name] = name_totals.get(name, 0) + amount
     
     # Sort by total amount and get top 3
@@ -149,7 +149,7 @@ def get_top_transactions(transactions, they_paid=True):
     return [{
         'name': name,
         'total_amount': amount,
-        'transaction_count': sum(1 for t in filtered_transactions if t['Name'] == name)
+        'transaction_count': sum(1 for t in filtered_transactions if t['name'] == name)
     } for name, amount in top_3]
 
 #function that returns venmo data
@@ -192,7 +192,7 @@ def get_venmo_data():
     final_object['topPaidByMe'] = get_top_transactions(all_transactions, they_paid=False)
     final_object['allTransactions'] = all_transactions
 
-    print(final_object)
+    return final_object
     #STILL NEED TO POPULATE ITEMS AND RENAME OBJECT KEY NAMES
     # count = 0
     # for transaction in all_transactions:
@@ -203,4 +203,4 @@ def get_venmo_data():
 
     
 
-get_venmo_data()
+# get_venmo_data()

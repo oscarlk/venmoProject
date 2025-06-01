@@ -3,7 +3,7 @@ from read_emails import get_venmo_data
 app = Flask(__name__)
 
 @app.route('/getVenmoData')
-def get_venmo_data():
+def get_venmo_data_route():
     obj = get_venmo_data()
     return obj
 
