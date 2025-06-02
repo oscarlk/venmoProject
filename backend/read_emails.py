@@ -153,15 +153,25 @@ def get_top_transactions(transactions, they_paid=True):
     } for name, amount in top_3]
 
 #function that returns venmo data
-def get_venmo_data():
-    #authentication, needs to be modified when creating unique id
-    # token_path = 'gmail_token.json'
-
+def get_venmo_data(token_file=None):
+    """
+    Get Venmo data from Gmail
+    
+    Args:
+        token_file: Path to Gmail token file (for multi-user support)
+                   If None, uses default authentication
+    """
     try:
-        # gmail = Gmail(client_secret_file=token_path)
-        gmail = Gmail()
+        # Initialize Gmail with specific token file or default
+        if token_file:
+            print(f"Using token file: {token_file}")
+            gmail = Gmail(creds_file=token_file)
+        else:
+            print("Using default Gmail authentication")
+            gmail = Gmail()
+            
     except Exception as e:
-        raise Exception(f"Gmail authentication failed for user {str(e)}")
+        raise Exception(f"Gmail authentication failed: {str(e)}")
 
     # get messages from gmail
     paid_messages = gmail.get_messages(query=construct_query(PAID_QUERY_PARAMS))

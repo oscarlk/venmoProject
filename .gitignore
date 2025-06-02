@@ -1,5 +1,7 @@
 backend/client_secret.json
 backend/gmail_token.json
+backend/.env
+backend/tokens
 
 # Logs
 logs

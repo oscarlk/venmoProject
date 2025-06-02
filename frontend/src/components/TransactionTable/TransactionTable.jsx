@@ -27,27 +27,37 @@ const columns = [
 
 ];
 
-function createData(date, payeeRecipient, note, amount) {
-    return { date, payeeRecipient, note, amount };
+function createData(dateRequested, name, item, amount) {
+  const date = new Date(dateRequested);
+  const formattedDate = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear().toString().slice(-2)}`;
+
+  return {
+    date: formattedDate,
+    payeeRecipient: name,
+    note: item,
+    amount: amount
+  };
 }
 
-const rows = [
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-  createData('3/15/25', 'Oscar Khowong', 'free moneiz', -56.37),
-];
+const getAmountColor = (amount) => {
+  return amount < 0 ? 'error.main' : 'success.main';
+};
 
-export default function TransactionTable() {
+export default function TransactionTable(props) {
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  const rows = React.useMemo(() => {
+    if (!props?.data) return [];
+    return props.data.map(transaction =>
+      createData(
+        transaction.dateRequested,
+        transaction.name,
+        transaction.item,
+        !transaction?.theyPaidYou ? transaction.amount * -1 : transaction.amount
+      )
+    );
+  }, [props.data]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -59,7 +69,7 @@ export default function TransactionTable() {
   };
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden', mt: 3}}>
+    <Paper sx={{ width: '100%', overflow: 'hidden', mt: 3 }}>
       <TableContainer sx={{ maxHeight: 275 }}>
         <Table stickyHeader aria-label="sticky table">
           <TableHead>
@@ -84,7 +94,9 @@ export default function TransactionTable() {
                     {columns.map((column) => {
                       const value = row[column.id];
                       return (
-                        <TableCell key={column.id} align={column.align}>
+                        <TableCell key={column.id} align={column.align} sx={{
+                          color: column.id === 'amount' ? getAmountColor(value) : 'inherit'
+                        }}>
                           {column.format && typeof value === 'number'
                             ? column.format(value)
                             : value}

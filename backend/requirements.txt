@@ -1,1 +1,5 @@
 simplegmail
+flask
+flask-cors
+requests
+dotenv
