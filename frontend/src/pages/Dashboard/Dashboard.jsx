@@ -3,7 +3,8 @@ import Container from '@mui/material/Container';
 import styles from './Dashboard.module.css';
 import NavBar from '../../components/NavBar/NavBar';
 import venmo from '../../assets/venmo.png';
-import Card from '../../components/Card/Card';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
@@ -135,116 +136,124 @@ const Dashboard = () => {
             <NavBar />
             <Container maxWidth="lg" className={styles.container}>
 
-                <Typography variant="h4" component="h1" sx={{ mt: 3, mb: 2, fontWeight: 'bolder' }}>Your <img src={venmo} alt="Venmo" width={130} /> history, at a glance.</Typography>
+                <Typography component="h1" sx={{ mt: 3, mb: 2, fontWeight: 'bolder', fontSize: {xs:'1.5rem', md:'2.5rem'}}}>Your <Box component="img" src={venmo} alt="Venmo" sx={{width: {xs:'100px', md:'130px'}, mx:1}} /> history, at a glance.</Typography>
 
                 <Chip label="01/17/25 - 06/17/25" variant="outlined" color="info" />
 
-                <Box rowSpacing={1} sx={{ mt: 3, mb: 4 }} >
-                    <Grid container spacing={2} rowSpacing={4} alignItems={"stretch"}>
+                <Box sx={{ mt: 3, mb: 4,}} >
+                    <Grid container spacing={2}>
                         {/* Top Row */}
-                        <Grid item size={3}>
-                            <Card >
-                                <Div>{"Average Payment Completion"}</Div>
-                                <Typography variant="h2" component="h1" color="textPrimary" sx={{ mt: 1 }}>
-                                    {(averagePaybackTime / 3600).toFixed(3) || 'N/A'}
-                                </Typography>
-                                <Typography variant="h6" component="h6" sx={{ mt: 1 }}>
-                                    Hours
-                                </Typography>
+                        <Grid item size={{xs:12, sm:6, lg:3}}>
+                            <Card sx={{textAlign: 'center',display: 'flex', flexDirection: 'column', height: '100%'}}>
+                                <CardContent>
+                                    <Div>{"Average Payment Completion"}</Div>
+                                    <Typography variant="h2" component="h1" color="textPrimary" sx={{ mt: 2 }}>
+                                        {(averagePaybackTime / 3600).toFixed(3) || 'N/A'}
+                                    </Typography>
+                                    <Typography variant="body1" color="textSecondary" sx={{ mt: 2 }}>
+                                        Hours
+                                    </Typography>
+                                </CardContent>
                             </Card>
                         </Grid>
-                        <Grid item size={3}>
-                            <Card>
-                                <Div>{"Total Transactions"}</Div>
-                                <Typography variant="h1" component="h1" color="textPrimary" sx={{ mt: 1 }}>
-                                    {paidCount + paymentsReceived || 'N/A'}
-                                </Typography>
-                                <Divider variant="middle" component="li" sx={{ listStyle: 'none' }} />
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, p: 1 }}>
-                                    <Typography variant="body1" component="span" color="textPrimary">
-                                        {paidCount || 'N/A'}
+                        <Grid item size={{xs:12, sm:6, lg:3}}>
+                            <Card sx={{textAlign: 'center',display: 'flex', flexDirection: 'column', height: '100%'}}>
+                                <CardContent>
+                                    <Div>{"Total Transactions"}</Div>
+                                    <Typography variant="h2" component="h1" color="textPrimary" sx={{ my: 1 }}>
+                                        {paidCount + paymentsReceived || 'N/A'}
                                     </Typography>
-                                    <Typography variant="body1" component="span" color="textSecondary">
-                                        Payments Made
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, p: 1 }}>
-                                    <Typography variant="body1" component="span" color="textPrimary">
-                                        {paymentsReceived || 'N/A'}
-                                    </Typography>
-                                    <Typography variant="body1" component="span" color="textSecondary">
-                                        Payments Received
-                                    </Typography>
-                                </Box>
+                                    <Divider variant="middle" component="li" sx={{ listStyle: 'none' }} />
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, p: 1 }}>
+                                        <Typography variant="body1" component="span" color="textPrimary">
+                                            {paidCount || 'N/A'}
+                                        </Typography>
+                                        <Typography variant="body1" component="span" color="textSecondary">
+                                            Payments Made
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, p: 1 }}>
+                                        <Typography variant="body1" component="span" color="textPrimary">
+                                            {paymentsReceived || 'N/A'}
+                                        </Typography>
+                                        <Typography variant="body1" component="span" color="textSecondary">
+                                            Payments Received
+                                        </Typography>
+                                    </Box>
+                                </CardContent>
                             </Card>
                         </Grid>
-                        <Grid item size={3}>
-                            <Card>
-                                <Div>{"Top people who paid you"}</Div>
-                                <BarChart
-                                    xAxis={[{ data: [topPaidToMe[0]?.name, topPaidToMe[1]?.name, topPaidToMe[2]?.name] }]}
-                                    series={[{ data: [topPaidToMe[0]?.total_amount, topPaidToMe[1]?.total_amount, topPaidToMe[2]?.total_amount] }]}
-                                    height={200}
-                                    barLabel="value"
-                                />
-
+                        <Grid item size={{xs:12, sm:6, lg:3}}>
+                            <Card sx={{height: '100%'}}>
+                                <CardContent>
+                                    <Div>{"Top people who paid you"}</Div>
+                                    <BarChart
+                                        xAxis={[{ data: [topPaidToMe[0]?.name, topPaidToMe[1]?.name, topPaidToMe[2]?.name] }]}
+                                        series={[{ data: [topPaidToMe[0]?.total_amount, topPaidToMe[1]?.total_amount, topPaidToMe[2]?.total_amount], color:"#008CFF" }]}
+                                        height={200}
+                                        barLabel="value"
+                                    />
+                                </CardContent>
                             </Card>
                         </Grid>
-                        <Grid item size={3}>
-                            <Card>
-                                <Div>{"Top people you paid"}</Div>
-                                <BarChart
-                                    xAxis={[{ data: [topPaidByMe[0]?.name, topPaidByMe[1]?.name, topPaidByMe[2]?.name] }]}
-                                    series={[{ data: [topPaidByMe[0]?.total_amount, topPaidByMe[1]?.total_amount, topPaidByMe[2]?.total_amount] }]}
-                                    height={200}
-                                    barLabel="value"
-                                />
-
+                        <Grid item size={{xs:12, sm:6, lg:3}}>
+                            <Card sx={{height: '100%'}}>
+                                <CardContent>
+                                    <Div>{"Top people you paid"}</Div>
+                                    <BarChart
+                                        xAxis={[{ data: [topPaidByMe[0]?.name, topPaidByMe[1]?.name, topPaidByMe[2]?.name] }]}
+                                        series={[{ data: [topPaidByMe[0]?.total_amount, topPaidByMe[1]?.total_amount, topPaidByMe[2]?.total_amount], color:"#008CFF" }]}
+                                        height={200}
+                                        barLabel="value"
+                                    />
+                                </CardContent>
                             </Card>
                         </Grid>
                     </Grid>
-                    <Grid container spacing={2} rowSpacing={4} sx={{ mt: 1 }}>
-
+                    <Grid container spacing={2} rowSpacing={4} sx={{ mt: 2 }}>
                         {/* Bottom Row */}
-                        <Grid item size={6}>
-                            <Card>
-                                <Div>{"Transaction History"}</Div>
-                                <TransactionTable data={allTransactions}/>
-
+                        <Grid item size={{xs:12, lg:6}} >
+                            <Card sx={{height: '100%'}}>
+                                <CardContent>
+                                    <Div>{"Transaction History"}</Div>
+                                    <TransactionTable data={allTransactions}/>
+                                </CardContent>
                             </Card>
                         </Grid>
-                        <Grid item size={6}>
-                            <Card>
-                                <Div>{"Your 6 Month Spending Totals"}</Div>
-                                <LineChart
-                                    xAxis={[{
-                                        scaleType: "point",
-                                        data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-                                    }]}
-                                    series={[
-                                        {
-                                            curve: "linear",
-                                            data: [2, 5.5, 2, 8.5, 1.5, 5],
-                                            label: "Money Spent",
-                                            color: "red"
-                                        },
-                                        {
-                                            curve: "linear",
-                                            data: [6, 3, 7, 9.5, 4, 2],
-                                            label: "Money Recieved",
-                                            color: "green"
-                                        },
-                                        {
-                                            curve: "linear",
-                                            data: [5, -3, 9, 2, 9, -2],
-                                            label: "Total Balance",
-                                            color: "blue"
-                                        },
-                                    ]}
-                                    height={300}
-                                    grid={{ vertical: true, horizontal: true }}
-                                    legend={{ hidden: false }}
-                                />
+                        <Grid item size={{xs:12, lg:6}} >
+                            <Card sx={{height: '100%'}}>
+                                <CardContent>
+                                    <Div>{"Your 6 Month Spending Totals"}</Div>
+                                    <LineChart
+                                        xAxis={[{
+                                            scaleType: "point",
+                                            data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+                                        }]}
+                                        series={[
+                                            {
+                                                curve: "linear",
+                                                data: [2, 5.5, 2, 8.5, 1.5, 5],
+                                                label: "Money Spent",
+                                                color: "red"
+                                            },
+                                            {
+                                                curve: "linear",
+                                                data: [6, 3, 7, 9.5, 4, 2],
+                                                label: "Money Recieved",
+                                                color: "green"
+                                            },
+                                            {
+                                                curve: "linear",
+                                                data: [5, -3, 9, 2, 9, -2],
+                                                label: "Total Balance",
+                                                color: "#008CFF"
+                                            },
+                                        ]}
+                                        height={300}
+                                        grid={{ vertical: true, horizontal: true }}
+                                        legend={{ hidden: false }}
+                                    />
+                                </CardContent>
                             </Card>
                         </Grid>
                     </Grid>
