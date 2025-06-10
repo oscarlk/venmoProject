@@ -131,6 +131,16 @@ const Dashboard = () => {
         );
     }
 
+    const convertSeconds = (averagePaybackTime) => {
+        const days = Math.floor(averagePaybackTime / 86400);
+        const hours = Math.floor((averagePaybackTime % 86400) / 3600);
+        const minutes = Math.floor((averagePaybackTime % 3600) / 60);
+        const seconds = Math.round(averagePaybackTime % 60);
+    
+        return { days, hours, minutes, seconds };
+      };
+
+    const paybackTime = convertSeconds(averagePaybackTime);
     return (
         <>
             <NavBar />
@@ -144,14 +154,18 @@ const Dashboard = () => {
                     <Grid container spacing={2}>
                         {/* Top Row */}
                         <Grid item size={{xs:12, sm:6, lg:3}}>
-                            <Card sx={{textAlign: 'center',display: 'flex', flexDirection: 'column', height: '100%'}}>
-                                <CardContent>
+                            <Card sx={{textAlign: 'center', height: '100%'}}>
+                                <CardContent sx={{display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                                     <Div>{"Average Payment Completion"}</Div>
-                                    <Typography variant="h2" component="h1" color="textPrimary" sx={{ mt: 2 }}>
-                                        {(averagePaybackTime / 3600).toFixed(3) || 'N/A'}
-                                    </Typography>
-                                    <Typography variant="body1" color="textSecondary" sx={{ mt: 2 }}>
-                                        Hours
+                                    <Typography variant="h4" component="h4" sx={{ my: 5 }}>
+                                        <Box component="span" >{paybackTime.days}</Box>
+                                        <Box component="span" sx={{ color: '#A4A4A4', fontSize: '25px', mx: 0.5 }}>d </Box>
+                                        <Box component="span" >{paybackTime.hours}</Box>
+                                        <Box component="span" sx={{ color: '#A4A4A4', fontSize: '25px', mx: 0.5 }}>h </Box>
+                                        <Box component="span" >{paybackTime.minutes}</Box>
+                                        <Box component="span" sx={{ color: '#A4A4A4', fontSize: '25px', mx: 0.5 }}>m </Box>
+                                        <Box component="span" >{paybackTime.seconds}</Box>
+                                        <Box component="span" sx={{ color: '#A4A4A4', fontSize: '25px', mx: 0.5 }}>s</Box>
                                     </Typography>
                                 </CardContent>
                             </Card>
