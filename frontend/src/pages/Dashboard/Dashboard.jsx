@@ -130,7 +130,7 @@ const Dashboard = () => {
             </>
         );
     }
-
+    
     const convertSeconds = (averagePaybackTime) => {
         const days = Math.floor(averagePaybackTime / 86400);
         const hours = Math.floor((averagePaybackTime % 86400) / 3600);
@@ -143,6 +143,10 @@ const Dashboard = () => {
     const paybackTime = convertSeconds(averagePaybackTime);
 
 
+    const earliestDate = new Date(allTransactions[allTransactions.length - 1].dateRequested);
+    const formattedEarliestDate = `${earliestDate.getMonth() + 1}/${earliestDate.getDate()}/${earliestDate.getFullYear().toString().slice(-2)}`;
+    const mostRecentDate = new Date(allTransactions[0].dateRequested);
+    const formattedMostRecentDate = `${mostRecentDate.getMonth() + 1}/${mostRecentDate.getDate()}/${mostRecentDate.getFullYear().toString().slice(-2)}`;
       
     return (
         <>
@@ -151,7 +155,7 @@ const Dashboard = () => {
 
                 <Typography component="h1" sx={{ mt: 3, mb: 2, fontWeight: 'bolder', fontSize: {xs:'1.5rem', md:'2.5rem'}}}>Your <Box component="img" src={venmo} alt="Venmo" sx={{width: {xs:'100px', md:'130px'}, mx:1}} /> history, at a glance.</Typography>
 
-                <Chip label="01/17/25 - 06/17/25" variant="outlined" color="info" />
+                <Chip label={`${formattedEarliestDate} - ${formattedMostRecentDate}`} variant="outlined" color="info" />
 
                 <Box sx={{ mt: 3, mb: 4,}} >
                     <Grid container spacing={2}>
