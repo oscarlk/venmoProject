@@ -141,6 +141,9 @@ const Dashboard = () => {
       };
 
     const paybackTime = convertSeconds(averagePaybackTime);
+
+
+      
     return (
         <>
             <NavBar />

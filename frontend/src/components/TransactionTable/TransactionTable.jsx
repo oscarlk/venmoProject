@@ -9,18 +9,18 @@ import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 
 const columns = [
-  { id: 'date', label: 'Date', minWidth: 80 },
+  { id: 'date', label: 'Date', minWidth: 50 },
   { id: 'payeeRecipient', label: 'Payee/Recipient', minWidth: 80 },
   {
     id: 'note',
     label: 'Note',
-    minWidth: 170,
+    minWidth: 150,
     format: (value) => value.toLocaleString('en-US'),
   },
   {
     id: 'amount',
     label: 'Amount',
-    minWidth: 20,
+    minWidth: 15,
     align: 'right',
     format: (value) => value.toLocaleString('en-US'),
   },
