@@ -152,6 +152,38 @@ def get_top_transactions(transactions, they_paid=True):
         'transaction_count': sum(1 for t in filtered_transactions if t['name'] == name)
     } for name, amount in top_3]
 
+def calculate_monthly_totals(all_transactions):
+    from datetime import datetime
+    
+    monthly_totals = {}
+    
+    for transaction in all_transactions:
+        date_obj = datetime.fromisoformat(transaction['dateRequested'])
+        year_month = date_obj.strftime('%Y-%m')
+        
+        # if month doesn't exist, create it
+        if year_month not in monthly_totals:
+            monthly_totals[year_month] = {
+                'month': year_month,
+                'moneySpent': 0,
+                'moneyReceived': 0,
+                'totalBalance': 0
+            }
+        
+        if transaction['theyPaidYou']:
+            monthly_totals[year_month]['moneyReceived'] += transaction['amount']
+        else:
+            monthly_totals[year_month]['moneySpent'] += transaction['amount']
+        
+        monthly_totals[year_month]['totalBalance'] = (
+            monthly_totals[year_month]['moneyReceived'] - 
+            monthly_totals[year_month]['moneySpent']
+        )
+    
+    monthly_list = list(monthly_totals.values())
+    monthly_list.sort(key=lambda x: x['month'])
+    return monthly_list
+
 #function that returns venmo data
 def get_venmo_data(token_file=None):
     """
@@ -201,6 +233,7 @@ def get_venmo_data(token_file=None):
     final_object['topPaidToMe'] = get_top_transactions(all_transactions, they_paid=True)
     final_object['topPaidByMe'] = get_top_transactions(all_transactions, they_paid=False)
     final_object['allTransactions'] = all_transactions
+    final_object['monthlyTotals'] = calculate_monthly_totals(all_transactions)
 
     return final_object
     #STILL NEED TO POPULATE ITEMS AND RENAME OBJECT KEY NAMES

@@ -40,8 +40,20 @@ const Dashboard = () => {
         requestCount = 0,
         topPaidByMe = [],
         topPaidToMe = [],
+        monthlyTotals = []
 
     } = venmoData || {};
+
+    const months = monthlyTotals.map(item => {
+        const [year, month] = item.month.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return monthNames[parseInt(month) - 1];
+    });
+
+    const moneySpent = monthlyTotals.map(item => -1 * item.moneySpent);
+    const moneyReceived = monthlyTotals.map(item => item.moneyReceived);
+    const totalBalance = monthlyTotals.map(item => item.totalBalance);
 
     useEffect(() => {
         if (user) {
@@ -207,10 +219,10 @@ const Dashboard = () => {
                         <Grid item size={{xs:12, sm:6, lg:3}}>
                             <Card sx={{height: '100%'}}>
                                 <CardContent>
-                                    <Div>{"Top people who paid you"}</Div>
+                                    <Div>{"They paid you the most"}</Div>
                                     <BarChart
-                                        xAxis={[{ data: [topPaidToMe[0]?.name, topPaidToMe[1]?.name, topPaidToMe[2]?.name] }]}
-                                        series={[{ data: [topPaidToMe[0]?.total_amount, topPaidToMe[1]?.total_amount, topPaidToMe[2]?.total_amount], color:"#008CFF" }]}
+                                        xAxis={[{ data: [topPaidToMe[0]?.name, topPaidToMe[1]?.name, topPaidToMe[2]?.name], valueFormatter: (value) => value ? value.split(' ')[0].charAt(0).toUpperCase() + value.split(' ')[0].slice(1) : '' }]}
+                                        series={[{ data: [topPaidToMe[0]?.total_amount, topPaidToMe[1]?.total_amount, topPaidToMe[2]?.total_amount], color:"#008CFF", valueFormatter: (value) => '$' + value }]}
                                         height={200}
                                         barLabel="value"
                                     />
@@ -220,12 +232,12 @@ const Dashboard = () => {
                         <Grid item size={{xs:12, sm:6, lg:3}}>
                             <Card sx={{height: '100%'}}>
                                 <CardContent>
-                                    <Div>{"Top people you paid"}</Div>
+                                    <Div>{"You paid them the most"}</Div>
                                     <BarChart
-                                        xAxis={[{ data: [topPaidByMe[0]?.name, topPaidByMe[1]?.name, topPaidByMe[2]?.name] }]}
-                                        series={[{ data: [topPaidByMe[0]?.total_amount, topPaidByMe[1]?.total_amount, topPaidByMe[2]?.total_amount], color:"#008CFF" }]}
+                                        xAxis={[{ data: [topPaidByMe[0]?.name, topPaidByMe[1]?.name, topPaidByMe[2]?.name], valueFormatter: (value) => value ? value.split(' ')[0].charAt(0).toUpperCase() + value.split(' ')[0].slice(1) : '' }]}
+                                        series={[{ data: [topPaidByMe[0]?.total_amount, topPaidByMe[1]?.total_amount, topPaidByMe[2]?.total_amount], color:"#008CFF", valueFormatter: (value) => '$' + value }]}
                                         height={200}
-                                        barLabel="value"
+                                        barLabel={"value"}
                                     />
                                 </CardContent>
                             </Card>
@@ -248,25 +260,25 @@ const Dashboard = () => {
                                     <LineChart
                                         xAxis={[{
                                             scaleType: "point",
-                                            data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+                                            data: months,
                                         }]}
                                         series={[
                                             {
                                                 curve: "linear",
-                                                data: [2, 5.5, 2, 8.5, 1.5, 5],
+                                                data: moneySpent,
                                                 label: "Money Spent",
-                                                color: "red"
+                                                color: "red",
                                             },
                                             {
                                                 curve: "linear",
-                                                data: [6, 3, 7, 9.5, 4, 2],
+                                                data: moneyReceived,
                                                 label: "Money Recieved",
                                                 color: "green"
                                             },
                                             {
                                                 curve: "linear",
-                                                data: [5, -3, 9, 2, 9, -2],
-                                                label: "Total Balance",
+                                                data: totalBalance,
+                                                label: "Net Total",
                                                 color: "#008CFF"
                                             },
                                         ]}

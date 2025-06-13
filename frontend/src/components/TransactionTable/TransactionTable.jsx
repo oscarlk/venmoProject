@@ -22,7 +22,6 @@ const columns = [
     label: 'Amount',
     minWidth: 15,
     align: 'right',
-    format: (value) => value.toLocaleString('en-US'),
   },
 
 ];
@@ -40,7 +39,7 @@ function createData(dateRequested, name, item, amount) {
 }
 
 const getAmountColor = (amount) => {
-  return amount < 0 ? 'error.main' : 'success.main';
+  return amount.includes('-') ? 'error.main' : 'success.main';
 };
 
 export default function TransactionTable(props) {
@@ -54,7 +53,7 @@ export default function TransactionTable(props) {
         transaction.dateRequested,
         transaction.name,
         transaction.item,
-        !transaction?.theyPaidYou ? transaction.amount * -1 : transaction.amount
+        (!transaction?.theyPaidYou ? '- $' + transaction.amount : '+ $' + (transaction.amount.toString()))
       )
     );
   }, [props.data]);
