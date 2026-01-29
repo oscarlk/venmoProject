@@ -148,7 +148,7 @@ def get_top_transactions(transactions, they_paid=True):
     top_3 = sorted(name_totals.items(), key=lambda x: x[1], reverse=True)[:3]
     return [{
         'name': name,
-        'total_amount': amount,
+        'total_amount': round(amount, 2),
         'transaction_count': sum(1 for t in filtered_transactions if t['name'] == name)
     } for name, amount in top_3]
 
