@@ -209,18 +209,15 @@ The backend computes metrics such as average payback time by analyzing reciproca
 
 # Future Improvements
 
-Several improvements could be made to scale the system further.
-
 ## Database Integration
-Currently transaction data is processed in memory. Introducing a database would allow the system to scale to larger datasets.
 
----
+Currently transaction data is processed in memory. Introducing a database would allow the system to scale to larger datasets, support more persistent storage, and make it easier to handle repeated analytics requests across users.
 
 ## Authentication Refactor
 
-One improvement I would make is replacing the current Simple Gmail-based integration with the Google Auth library directly. This change would require migrating the existing API calls and authentication flow, but it would reduce abstraction overhead, give finer control over OAuth token management, and make the system more robust, maintainable, and easier to extend as the project grows.
+One major improvement I would make is refactoring the authentication layer to use Google’s OAuth and authentication libraries directly instead of the current simpler integration approach. The current design was sufficient for building and validating the product quickly, but a more scalable version of the system would rely on a more robust external authentication flow rather than handling as much user-specific auth state within the application itself.
 
----
+This change would require significant refactoring, including migrating the existing API calls and restructuring how user sessions and token management are handled. It would make the system more complex to implement, but it would also make it more secure, easier to scale to more users, and better aligned with a production-grade multi-user architecture.
 
 ## Performance Optimization
 
