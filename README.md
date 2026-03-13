@@ -1,59 +1,64 @@
-Venmo Analytics Platform
+# Venmo Analytics Platform
 
 A full-stack web application that analyzes personal Venmo transaction patterns and generates insights that are not available in the native Venmo application.
 
-The platform ingests Venmo transaction data and computes analytics such as average payback time, top interaction partners, and payment trends to help users better understand their spending and repayment behaviors.
+The platform ingests Venmo transaction data and computes analytics such as **average payback time**, **top interaction partners**, and **payment trends** to help users better understand their spending and repayment behaviors.
 
-Demo
+---
 
-Working Demo:
+# Demo
+
+Working Demo:  
 https://drive.google.com/file/d/1H1P5uHx4OyU9GiyUxEJeG8Ze0Bh7LwlK/view
 
-Tech Stack
-Frontend
+---
 
-React
+# Tech Stack
 
-JavaScript
+## Frontend
+- React
+- JavaScript
+- HTML / CSS
 
-HTML / CSS
+## Backend
+- Python
+- Flask
+- REST APIs
 
-Backend
+## Additional Tools
+- OAuth authentication
+- Environment variable configuration
+- JSON data processing
 
-Python
+---
 
-Flask
+# Key Features
 
-REST APIs
-
-Additional Tools
-
-OAuth authentication
-
-Environment variable configuration
-
-JSON data processing
-
-Key Features
-Transaction Analytics
+## Transaction Analytics
 
 Compute insights from Venmo transaction history including:
 
-Average payback time between users
+- Average payback time between users
+- Most frequent transaction partners
+- Payment direction (who pays whom most often)
 
-Most frequent transaction partners
+---
 
-Payment direction (who pays whom most often)
-
-Interactive Web Interface
+## Interactive Web Interface
 
 The React frontend provides a user-friendly interface for viewing analytics and interacting with the system.
 
-Custom Backend APIs
+---
+
+## Custom Backend APIs
 
 The Flask backend exposes REST endpoints that process transaction data and return structured analytics results to the frontend.
 
-System Architecture
+---
+
+# System Architecture
+
+```
                 +-------------------+
                 |   React Frontend  |
                 |  UI / Analytics   |
@@ -78,19 +83,23 @@ System Architecture
                 | Venmo Transaction |
                 |       Data        |
                 +-------------------+
-How the System Works
+```
 
-The frontend sends requests to the Flask backend.
+---
 
-The backend processes Venmo transaction data.
+# How the System Works
 
-Custom analytics algorithms compute insights such as payback time and transaction rankings.
+1. The frontend sends requests to the Flask backend.
+2. The backend processes Venmo transaction data.
+3. Custom analytics algorithms compute insights such as payback time and transaction rankings.
+4. The backend returns structured JSON responses.
+5. The frontend visualizes the results for the user.
 
-The backend returns structured JSON responses.
+---
 
-The frontend visualizes the results for the user.
+# Repository Structure
 
-Repository Structure
+```
 venmoProject
 │
 ├── frontend
@@ -102,59 +111,95 @@ venmoProject
 │   └── analytics logic
 │
 └── README.md
-Setup Instructions
-Backend
+```
+
+---
+
+# Setup Instructions
+
+## Backend
 
 Navigate to the backend directory.
 
+```bash
 cd backend
+```
 
 Install Python dependencies.
 
+```bash
 pip install -r requirements.txt
+```
 
-Create a .env file with required environment variables.
+Create a `.env` file with required environment variables.
 
 Start the backend server.
 
+```bash
 python server.py
-Frontend
+```
+
+---
+
+## Frontend
 
 Navigate to the frontend directory.
 
+```bash
 cd frontend
+```
 
 Install dependencies.
 
+```bash
 npm install
+```
 
 Start the development server.
 
+```bash
 npm run dev
+```
 
 The application should now be running locally.
 
-Engineering Decisions
-Flask Backend
+---
+
+# Engineering Decisions
+
+## Flask Backend
 
 Flask was chosen because it provides a lightweight framework for building REST APIs quickly while keeping the backend logic simple and easy to extend.
 
-React Frontend
+---
+
+## React Frontend
 
 React enables component-based UI development and simplifies building interactive analytics dashboards.
 
-REST API Architecture
+---
+
+## REST API Architecture
 
 Using REST APIs allows the frontend and backend to remain decoupled and enables the backend to evolve independently.
 
-Custom Analytics Logic
+---
+
+## Custom Analytics Logic
 
 The backend computes metrics such as average payback time by analyzing reciprocal transactions between users and calculating the time differences between payments.
 
-Future Improvements
+---
+
+# Future Improvements
 
 Several improvements could be made to scale the system further.
 
-Database Integration
-
+## Database Integration
 Currently transaction data is processed in memory. Introducing a database would allow the system to scale to larger datasets.
+
+---
+
+## Authentication Refactor
+
+One improvement I would make is replacing the current Simple Gmail-based integration with the Google Auth library directly. This change would require migrating the existing API calls and authentication flow, but it would reduce abstraction overhead, give finer control over OAuth token management, and make the system more robust, maintainable, and easier to extend as the project grows.
