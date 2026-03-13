@@ -45,6 +45,21 @@ Compute insights from Venmo transaction history including:
 
 ---
 
+## Data Ingestion Strategy
+
+Venmo does not provide a public-facing API for accessing user transaction data. Because of this limitation, I implemented a custom data ingestion approach using the email notifications that Venmo sends for each transaction.
+
+The backend retrieves these emails and uses regular expressions to extract key transaction fields such as:
+
+- Sender or recipient
+- Transaction amount
+- Timestamp
+- Email subject and metadata
+
+This parsing layer converts the unstructured email content into structured transaction data that can then be processed by the analytics engine.
+
+While this approach introduces some additional processing overhead, it enables the system to work with real Venmo transaction data despite the absence of official APIs.
+
 ## Interactive Web Interface
 
 The React frontend provides a user-friendly interface for viewing analytics and interacting with the system.
