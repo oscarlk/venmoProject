@@ -9,6 +9,8 @@ The platform ingests Venmo transaction data and computes analytics such as **ave
 # Demo
 
 Working Demo:  
+<img width="1512" height="863" alt="image" src="https://github.com/user-attachments/assets/4aea724d-b084-47a8-9142-f4d1ba0e857e" />
+
 https://drive.google.com/file/d/1H1P5uHx4OyU9GiyUxEJeG8Ze0Bh7LwlK/view
 
 ---
