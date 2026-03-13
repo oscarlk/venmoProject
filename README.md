@@ -204,3 +204,9 @@ Currently transaction data is processed in memory. Introducing a database would 
 ## Authentication Refactor
 
 One improvement I would make is replacing the current Simple Gmail-based integration with the Google Auth library directly. This change would require migrating the existing API calls and authentication flow, but it would reduce abstraction overhead, give finer control over OAuth token management, and make the system more robust, maintainable, and easier to extend as the project grows.
+
+---
+
+## Performance Optimization
+
+Another improvement would be lowering the latency of loading analytics in the application. As the transaction dataset grows, computing results on demand can become slower and create a less responsive experience. To address this, I would consider precomputing frequently requested metrics, introducing a caching layer for repeated queries, and restructuring parts of the backend processing pipeline to avoid unnecessary recomputation. This would improve responsiveness and make the system scale more effectively.
