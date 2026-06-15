@@ -103,7 +103,7 @@ def average_payback_time(request_messages):
         if request['dateDifferenceSeconds'] is not None:
             total_seconds += request['dateDifferenceSeconds']
     average_seconds = total_seconds / request_count
-    return average_seconds
+    return abs(average_seconds)
 
 def extact_payments(paymentMessages, all_transactions):
     stored_payments = []

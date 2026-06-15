@@ -16,6 +16,7 @@ import TransactionTable from '../../components/TransactionTable/TransactionTable
 import Divider from '@mui/material/Divider';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { API_URL } from '../../config';
 
 const Div = styled('div')(({ theme }) => ({
     ...theme.typography.button,
@@ -66,7 +67,7 @@ const Dashboard = () => {
         setError(null);
 
         try {
-            const response = await fetch('http://localhost:8000/getVenmoData', {
+            const response = await fetch(`${API_URL}/getVenmoData`, {
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',

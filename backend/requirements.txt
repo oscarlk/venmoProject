@@ -2,4 +2,6 @@ simplegmail
 flask
 flask-cors
 requests
-dotenv
+python-dotenv
+pymongo
+gunicorn

@@ -2,6 +2,9 @@ backend/client_secret.json
 backend/gmail_token.json
 backend/.env
 backend/tokens
+backend/venv
+__pycache__/
+*.pyc
 
 # Logs
 logs

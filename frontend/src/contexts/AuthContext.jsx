@@ -1,5 +1,6 @@
 // contexts/AuthContext.jsx - Create this new file
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { API_URL } from '../config'
 
 const AuthContext = createContext()
 
@@ -19,7 +20,7 @@ export const AuthProvider = ({ children }) => {
     try {
       // Open Google OAuth popup to Flask backend
       const popup = window.open(
-        'http://localhost:8000/auth/signin/google',
+        `${API_URL}/auth/signin/google`,
         'google-signin',
         'width=500,height=600,scrollbars=yes,resizable=yes'
       )
@@ -27,7 +28,7 @@ export const AuthProvider = ({ children }) => {
       // Listen for messages from popup
       const handleMessage = (event) => {
         // Only accept messages from our backend
-        if (event.origin !== 'http://localhost:8000') return
+        if (event.origin !== API_URL) return
         
         if (event.data.type === 'success') {
           popup.close()
@@ -57,7 +58,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('http://localhost:8000/auth/session', {
+      const response = await fetch(`${API_URL}/auth/session`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +81,7 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
-      await fetch('http://localhost:8000/auth/signout', { 
+      await fetch(`${API_URL}/auth/signout`, {
         method: 'POST',
         credentials: 'include',
         headers: {
