@@ -11,7 +11,7 @@ local development keeps working with no database.
 
 import os
 import json
-import tempfile
+import time
 from datetime import datetime, timedelta
 
 USE_MONGO = bool(os.environ.get('MONGODB_URI'))
@@ -20,15 +20,49 @@ _TOKENS_DIR = 'tokens'
 _collection = None
 
 
-def _get_collection():
-    """Lazily create the MongoDB collection handle (one client per process)."""
-    global _collection
-    if _collection is None:
+_db = None
+
+
+def _get_db():
+    """Lazily create the MongoDB database handle (one client per process)."""
+    global _db
+    if _db is None:
         from pymongo import MongoClient
         client = MongoClient(os.environ['MONGODB_URI'])
-        db = client[os.environ.get('MONGODB_DB', 'venmo')]
-        _collection = db['gmail_tokens']
+        _db = client[os.environ.get('MONGODB_DB', 'venmo')]
+    return _db
+
+
+def _get_collection():
+    """Lazily create the gmail_tokens collection handle."""
+    global _collection
+    if _collection is None:
+        _collection = _get_db()['gmail_tokens']
     return _collection
+
+
+def add_waitlist_email(email):
+    """Record a request-access email (MongoDB collection or local file).
+
+    Idempotent on email so duplicate submissions don't pile up.
+    """
+    if USE_MONGO:
+        from datetime import datetime
+        _get_db()['waitlist'].update_one(
+            {'_id': email},
+            {'$setOnInsert': {'created': datetime.utcnow().isoformat() + 'Z'}},
+            upsert=True,
+        )
+    else:
+        os.makedirs(_TOKENS_DIR, exist_ok=True)
+        path = os.path.join(_TOKENS_DIR, 'waitlist.txt')
+        existing = set()
+        if os.path.exists(path):
+            with open(path) as f:
+                existing = {line.strip() for line in f}
+        if email not in existing:
+            with open(path, 'a') as f:
+                f.write(email + '\n')
 
 
 def build_token_structure(tokens, client_id, client_secret):
@@ -78,44 +112,43 @@ def save_token(user_id, token_structure):
             json.dump(token_structure, f, indent=2)
 
 
-def materialize_token_file(user_id):
-    """Return (path, is_temp) to a creds file simplegmail can read.
-
-    Returns (None, False) if no token is stored for the user. When is_temp is
-    True the caller is responsible for deleting the path when done.
-    """
+def load_token(user_id):
+    """Return the stored token dict for a user, or None if not found."""
     if USE_MONGO:
-        col = _get_collection()
-        doc = col.find_one({'_id': user_id})
-        if not doc:
-            return None, False
-        tmp = tempfile.NamedTemporaryFile('w', suffix='.json', delete=False)
-        json.dump(doc['token'], tmp)
-        tmp.close()
-        return tmp.name, True
+        doc = _get_collection().find_one({'_id': user_id})
+        return doc['token'] if doc else None
 
     path = _token_path(user_id)
     if not os.path.exists(path):
-        return None, False
-    return path, False
-
-
-def persist_refreshed_token(user_id, path):
-    """Read a (possibly refreshed) creds file back and save it to the store.
-
-    simplegmail/oauth2client may refresh the access token and rewrite the creds
-    file. When that file is a temp file (MongoDB mode), read it back so the
-    refreshed token isn't lost.
-    """
-    if not USE_MONGO:
-        return
-    try:
-        with open(path) as f:
-            token_structure = json.load(f)
-        save_token(user_id, token_structure)
-    except (OSError, json.JSONDecodeError):
-        pass
+        return None
+    with open(path) as f:
+        return json.load(f)
 
 
 def _token_path(user_id):
     return os.path.join(_TOKENS_DIR, f'gmail_token_{user_id}.json')
+
+
+def get_cache(user_id):
+    """Return the cached Venmo data doc for a user, or None.
+
+    Shape: {'data': {...}, 'fetchedAt': <epoch seconds>}
+    """
+    if USE_MONGO:
+        return _get_db()['venmo_cache'].find_one({'_id': user_id})
+    path = os.path.join(_TOKENS_DIR, f'cache_{user_id}.json')
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+    return None
+
+
+def save_cache(user_id, data):
+    """Cache parsed Venmo data (full window) for a user with a timestamp."""
+    doc = {'_id': user_id, 'data': data, 'fetchedAt': time.time()}
+    if USE_MONGO:
+        _get_db()['venmo_cache'].replace_one({'_id': user_id}, doc, upsert=True)
+    else:
+        os.makedirs(_TOKENS_DIR, exist_ok=True)
+        with open(os.path.join(_TOKENS_DIR, f'cache_{user_id}.json'), 'w') as f:
+            json.dump(doc, f)

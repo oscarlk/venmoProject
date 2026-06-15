@@ -1,5 +1,5 @@
-from simplegmail import Gmail
-from simplegmail.query import construct_query
+import gmail_client
+from gmail_client import build_query
 import re
 from datetime import datetime
 from collections import Counter
@@ -39,7 +39,7 @@ def extract_requests(requestMessages):
     
     return stored_requests    
 
-def update_paid_message(paidMessages, request_messages, all_transactions):
+def update_paid_message(paidMessages, all_transactions, paid_events):
     name_pattern = re.compile(r"You paid ([\w\s]+) \$([\d,.]+)")
     amount_pattern = re.compile(r"You paid [\w\s]+ \$([\d,.]+)")
     item_pattern = re.compile(r"You paid .+ \$ \d+ \. \d+ (.+?) See transaction")
@@ -53,12 +53,6 @@ def update_paid_message(paidMessages, request_messages, all_transactions):
             paid_name = name_match.group(1).strip()
             paid_amount = float(amount_match.group(1).replace(",", ""))
 
-            # Check for a matching request
-            for request in request_messages:
-                if (request['name'] == paid_name and request['amount'] == paid_amount):
-                    request['datePaid'] = paidMessage.date
-                    request['dateDifferenceSeconds'] = (datetime.fromisoformat(request['datePaid']) - datetime.fromisoformat(request['dateRequested'])).total_seconds()
-            # Add the transaction to all_transactions
             all_transactions.append({
                 "name": paid_name,
                 "amount": paid_amount,
@@ -66,8 +60,9 @@ def update_paid_message(paidMessages, request_messages, all_transactions):
                 "theyPaidYou": False,
                 "item": item_match.group(1).strip() if item_match else "Emoji probably present",
             })
+            paid_events.append({"name": paid_name, "amount": paid_amount, "date": paidMessage.date})
 
-def update_paid_charge_message(paidMessages, request_messages, all_transactions):
+def update_paid_charge_message(paidMessages, all_transactions, paid_events):
     name_pattern_charge_request = re.compile(r"You completed (.+?)'s \$[\d.]+? charge request")
     amount_pattern_charge_request = re.compile(r"\$(\d+(?:\.\d{2})?)")
     item_pattern = re.compile(r"charged You (.+?) Transfer Date")
@@ -81,11 +76,6 @@ def update_paid_charge_message(paidMessages, request_messages, all_transactions)
             paid_name = name_match.group(1).strip()
             paid_amount = float(amount_match.group(1).replace(",", ""))
 
-            # Check for a matching request
-            for request in request_messages:
-                if (request['name'] == paid_name and request['amount'] == paid_amount):
-                    request['datePaid'] = paidMessage.date
-                    request['dateDifferenceSeconds'] = (datetime.fromisoformat(request['datePaid']) - datetime.fromisoformat(request['dateRequested'])).total_seconds()
             all_transactions.append({
                 "name": paid_name,
                 "amount": paid_amount,
@@ -93,17 +83,40 @@ def update_paid_charge_message(paidMessages, request_messages, all_transactions)
                 "theyPaidYou": False,
                 "item": item_match.group(1).strip() if item_match else "Emoji probably present",
             })
+            paid_events.append({"name": paid_name, "amount": paid_amount, "date": paidMessage.date})
+
+def match_payments_to_requests(request_messages, paid_events):
+    """Match each request to the earliest payment of the same name+amount that
+    occurred at or after the request, using each payment at most once.
+
+    This avoids matching a request to an unrelated earlier payment (which
+    produced negative/garbage payback times). Sets datePaid and
+    dateDifferenceSeconds on matched requests.
+    """
+    events = sorted(paid_events, key=lambda e: datetime.fromisoformat(e['date']))
+    used = [False] * len(events)
+
+    for request in sorted(request_messages, key=lambda r: datetime.fromisoformat(r['dateRequested'])):
+        req_dt = datetime.fromisoformat(request['dateRequested'])
+        for i, event in enumerate(events):
+            if used[i]:
+                continue
+            if event['name'] != request['name'] or event['amount'] != request['amount']:
+                continue
+            if datetime.fromisoformat(event['date']) >= req_dt:
+                used[i] = True
+                request['datePaid'] = event['date']
+                request['dateDifferenceSeconds'] = (
+                    datetime.fromisoformat(event['date']) - req_dt
+                ).total_seconds()
+                break
 
 def average_payback_time(request_messages):
-    request_count = len(request_messages)
-    total_seconds = 0
-    if request_count == 0:
+    # Average only over requests that were actually matched to a payment.
+    matched = [r for r in request_messages if r['dateDifferenceSeconds'] is not None]
+    if not matched:
         return 0
-    for request in request_messages:
-        if request['dateDifferenceSeconds'] is not None:
-            total_seconds += request['dateDifferenceSeconds']
-    average_seconds = total_seconds / request_count
-    return abs(average_seconds)
+    return sum(r['dateDifferenceSeconds'] for r in matched) / len(matched)
 
 def extact_payments(paymentMessages, all_transactions):
     stored_payments = []
@@ -184,66 +197,91 @@ def calculate_monthly_totals(all_transactions):
     monthly_list.sort(key=lambda x: x['month'])
     return monthly_list
 
-#function that returns venmo data
-def get_venmo_data(token_file=None):
-    """
-    Get Venmo data from Gmail
-    
-    Args:
-        token_file: Path to Gmail token file (for multi-user support)
-                   If None, uses default authentication
-    """
-    try:
-        # Initialize Gmail with specific token file or default
-        if token_file:
-            print(f"Using token file: {token_file}")
-            gmail = Gmail(creds_file=token_file)
-        else:
-            print("Using default Gmail authentication")
-            gmail = Gmail()
-            
-    except Exception as e:
-        raise Exception(f"Gmail authentication failed: {str(e)}")
+def _windowed(params, months):
+    """Copy a query-param dict with a different time window."""
+    p = dict(params)
+    p['newer_than'] = (months, 'month')
+    return p
 
-    # get messages from gmail
-    paid_messages = gmail.get_messages(query=construct_query(PAID_QUERY_PARAMS))
-    paid_charge_messages = gmail.get_messages(query=construct_query(PAID_CHARGE_QUERY_PARAMS))
+
+def fetch_transactions(service, months=12):
+    """Fetch and parse Venmo emails from Gmail for the last `months` months.
+
+    `service` is a Gmail API service (see gmail_client.build_service).
+
+    Returns the raw parsed data (requests + all transactions) WITHOUT
+    aggregation, so it can be cached once and then sliced into smaller
+    time windows (1m / 6m / 1y) without re-scanning Gmail.
+    """
+    paid_messages = gmail_client.search_messages(service, build_query(_windowed(PAID_QUERY_PARAMS, months)))
+    paid_charge_messages = gmail_client.search_messages(service, build_query(_windowed(PAID_CHARGE_QUERY_PARAMS, months)))
 
     all_transactions = []
-    requests = extract_requests(gmail.get_messages(query=construct_query(REQUEST_QUERY_PARAMS)))
-    payments = extact_payments(gmail.get_messages(query=construct_query(PAYMENT_QUERY_PARAMS)), all_transactions)
-    
-    # update requests object with your payments
-    update_paid_message(paid_messages, requests, all_transactions)
-    update_paid_charge_message(paid_charge_messages, requests, all_transactions)
+    paid_events = []
+    requests = extract_requests(gmail_client.search_messages(service, build_query(_windowed(REQUEST_QUERY_PARAMS, months))))
+    extact_payments(gmail_client.search_messages(service, build_query(_windowed(PAYMENT_QUERY_PARAMS, months))), all_transactions)
 
-    #sort all_transactions
-    all_transactions.sort(key=lambda x: datetime.fromisoformat(x['dateRequested']), reverse=True)
+    # record your payments (for the table) and collect them as events
+    update_paid_message(paid_messages, all_transactions, paid_events)
+    update_paid_charge_message(paid_charge_messages, all_transactions, paid_events)
 
-    # for request in requests:
-    #     print(request)
-    
-    #update final object
-    # final object returned for api call, return at the end?
-    final_object = {}
-    final_object['requestCount'] = len(requests)
-    final_object['paidCount'] = len(paid_messages) + len(paid_charge_messages)
-    final_object['averagePaybackTime'] = average_payback_time(requests)
-    final_object['paymentsReceived'] = len(payments)
-    final_object['topPaidToMe'] = get_top_transactions(all_transactions, they_paid=True)
-    final_object['topPaidByMe'] = get_top_transactions(all_transactions, they_paid=False)
-    final_object['allTransactions'] = all_transactions
-    final_object['monthlyTotals'] = calculate_monthly_totals(all_transactions)
+    # match payments back to the requests that prompted them (temporal, 1:1)
+    match_payments_to_requests(requests, paid_events)
 
-    return final_object
-    #STILL NEED TO POPULATE ITEMS AND RENAME OBJECT KEY NAMES
-    # count = 0
-    # for transaction in all_transactions:
-    #     count += 1
-    #     if count > 10:
-    #         break
-    #     print(transaction)
+    return {'requests': requests, 'allTransactions': all_transactions}
 
-    
 
-# get_venmo_data()
+def filter_window(data, days):
+    """Slice cached data down to transactions within the last `days` days."""
+    from datetime import timezone, timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    def recent(items):
+        kept = []
+        for item in items:
+            try:
+                d = datetime.fromisoformat(item['dateRequested'])
+            except (ValueError, KeyError, TypeError):
+                continue
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=timezone.utc)
+            if d >= cutoff:
+                kept.append(item)
+        return kept
+
+    return {
+        'requests': recent(data.get('requests', [])),
+        'allTransactions': recent(data.get('allTransactions', [])),
+    }
+
+
+def aggregate_transactions(requests, all_transactions):
+    """Compute the dashboard stats from parsed requests + transactions."""
+    paid = [t for t in all_transactions if not t['theyPaidYou']]
+    received = [t for t in all_transactions if t['theyPaidYou']]
+    ordered = sorted(
+        all_transactions,
+        key=lambda x: datetime.fromisoformat(x['dateRequested']),
+        reverse=True,
+    )
+
+    return {
+        'requestCount': len(requests),
+        'paidCount': len(paid),
+        'averagePaybackTime': average_payback_time(requests),
+        'paymentsReceived': len(received),
+        'topPaidToMe': get_top_transactions(all_transactions, they_paid=True),
+        'topPaidByMe': get_top_transactions(all_transactions, they_paid=False),
+        'allTransactions': ordered,
+        'monthlyTotals': calculate_monthly_totals(all_transactions),
+    }
+
+
+def get_venmo_data(token, months=6):
+    """Fetch + aggregate in one call (used for direct/local invocation).
+
+    `token` is a stored token dict (see token_store).
+    """
+    service, _ = gmail_client.build_service(token)
+    data = fetch_transactions(service, months=months)
+    return aggregate_transactions(data['requests'], data['allTransactions'])

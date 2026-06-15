@@ -8,7 +8,7 @@ import CardContent from '@mui/material/CardContent';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
-import { Typography, CircularProgress, Alert, Button } from '@mui/material';
+import { Typography, CircularProgress, Alert, Button, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { BarChart } from '@mui/x-charts';
 import { LineChart } from '@mui/x-charts/LineChart';
@@ -32,6 +32,9 @@ const Dashboard = () => {
     const [venmoData, setVenmoData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [range, setRange] = useState('6m');
+
+    const rangeLabels = { '1m': '1 Month', '6m': '6 Month', '1y': '1 Year' };
 
     const {
         allTransactions = [],
@@ -60,14 +63,14 @@ const Dashboard = () => {
         if (user) {
             fetchVenmoData();
         }
-    }, [user]); 
+    }, [user, range]);
 
     const fetchVenmoData = async () => {
         setLoading(true);
         setError(null);
 
         try {
-            const response = await fetch(`${API_URL}/getVenmoData`, {
+            const response = await fetch(`${API_URL}/getVenmoData?range=${range}`, {
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
@@ -155,12 +158,29 @@ const Dashboard = () => {
 
     const paybackTime = convertSeconds(averagePaybackTime);
 
+    const hasData = allTransactions.length > 0;
+    const formatDate = (d) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear().toString().slice(-2)}`;
+    const formattedEarliestDate = hasData ? formatDate(new Date(allTransactions[allTransactions.length - 1].dateRequested)) : '';
+    const formattedMostRecentDate = hasData ? formatDate(new Date(allTransactions[0].dateRequested)) : '';
 
-    const earliestDate = new Date(allTransactions[allTransactions.length - 1].dateRequested);
-    const formattedEarliestDate = `${earliestDate.getMonth() + 1}/${earliestDate.getDate()}/${earliestDate.getFullYear().toString().slice(-2)}`;
-    const mostRecentDate = new Date(allTransactions[0].dateRequested);
-    const formattedMostRecentDate = `${mostRecentDate.getMonth() + 1}/${mostRecentDate.getDate()}/${mostRecentDate.getFullYear().toString().slice(-2)}`;
-      
+    const handleRangeChange = (event, newRange) => {
+        if (newRange !== null) setRange(newRange);
+    };
+
+    const rangePills = (
+        <ToggleButtonGroup
+            value={range}
+            exclusive
+            onChange={handleRangeChange}
+            size="small"
+            color="primary"
+        >
+            <ToggleButton value="1m" sx={{ textTransform: 'none', px: 2 }}>1M</ToggleButton>
+            <ToggleButton value="6m" sx={{ textTransform: 'none', px: 2 }}>6M</ToggleButton>
+            <ToggleButton value="1y" sx={{ textTransform: 'none', px: 2 }}>1Y</ToggleButton>
+        </ToggleButtonGroup>
+    );
+
     return (
         <>
             <NavBar />
@@ -168,15 +188,24 @@ const Dashboard = () => {
 
                 <Typography component="h1" sx={{ mt: 3, mb: 2, fontWeight: 'bolder', fontSize: {xs:'1.5rem', md:'2.5rem'}}}>Your <Box component="img" src={venmo} alt="Venmo" sx={{width: {xs:'100px', md:'130px'}, mx:1}} /> history, at a glance.</Typography>
 
-                <Chip label={`${formattedEarliestDate} - ${formattedMostRecentDate}`} variant="outlined" color="info" />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
+                    {rangePills}
+                    {hasData && <Chip label={`${formattedEarliestDate} - ${formattedMostRecentDate}`} variant="outlined" color="info" />}
+                </Box>
 
-                <Box sx={{ mt: 3, mb: 4,}} >
+                {!hasData && (
+                    <Alert severity="info" sx={{ mt: 3 }}>
+                        No Venmo transactions found in the last {rangeLabels[range].toLowerCase()}. Try a longer range.
+                    </Alert>
+                )}
+
+                {hasData && <Box sx={{ mt: 3, mb: 4,}} >
                     <Grid container spacing={2}>
                         {/* Top Row */}
                         <Grid item size={{xs:12, sm:6, lg:3}}>
                             <Card sx={{textAlign: 'center', height: '100%'}}>
                                 <CardContent sx={{display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
-                                    <Div>{"Average Payment Completion"}</Div>
+                                    <Div>{"Average Payback Time"}</Div>
                                     <Typography variant="h4" component="h4" sx={{ my: 5 }}>
                                         <Box component="span" >{paybackTime.days}</Box>
                                         <Box component="span" sx={{ color: '#A4A4A4', fontSize: '25px', mx: 0.5 }}>d </Box>
@@ -220,7 +249,7 @@ const Dashboard = () => {
                         <Grid item size={{xs:12, sm:6, lg:3}}>
                             <Card sx={{height: '100%'}}>
                                 <CardContent>
-                                    <Div>{"They paid you the most"}</Div>
+                                    <Div>{"Who Pays You Most"}</Div>
                                     <BarChart
                                         xAxis={[{ data: [topPaidToMe[0]?.name, topPaidToMe[1]?.name, topPaidToMe[2]?.name], valueFormatter: (value) => value ? value.split(' ')[0].charAt(0).toUpperCase() + value.split(' ')[0].slice(1) : '' }]}
                                         series={[{ data: [topPaidToMe[0]?.total_amount, topPaidToMe[1]?.total_amount, topPaidToMe[2]?.total_amount], color:"#008CFF", valueFormatter: (value) => '$' + value }]}
@@ -233,7 +262,7 @@ const Dashboard = () => {
                         <Grid item size={{xs:12, sm:6, lg:3}}>
                             <Card sx={{height: '100%'}}>
                                 <CardContent>
-                                    <Div>{"You paid them the most"}</Div>
+                                    <Div>{"Who You Pay Most"}</Div>
                                     <BarChart
                                         xAxis={[{ data: [topPaidByMe[0]?.name, topPaidByMe[1]?.name, topPaidByMe[2]?.name], valueFormatter: (value) => value ? value.split(' ')[0].charAt(0).toUpperCase() + value.split(' ')[0].slice(1) : '' }]}
                                         series={[{ data: [topPaidByMe[0]?.total_amount, topPaidByMe[1]?.total_amount, topPaidByMe[2]?.total_amount], color:"#008CFF", valueFormatter: (value) => '$' + value }]}
@@ -257,7 +286,7 @@ const Dashboard = () => {
                         <Grid item size={{xs:12, lg:6}} >
                             <Card sx={{height: '100%'}}>
                                 <CardContent>
-                                    <Div>{"Your 6 Month Spending Totals"}</Div>
+                                    <Div>{`Your ${rangeLabels[range]} Spending Totals`}</Div>
                                     <LineChart
                                         xAxis={[{
                                             scaleType: "point",
@@ -291,7 +320,7 @@ const Dashboard = () => {
                             </Card>
                         </Grid>
                     </Grid>
-                </Box>
+                </Box>}
             </Container>
 
         </>

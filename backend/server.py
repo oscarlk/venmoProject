@@ -3,12 +3,19 @@ load_dotenv()
 
 from flask import Flask, request, jsonify, session, redirect
 from flask_cors import CORS
-from read_emails import get_venmo_data
+import read_emails
 import token_store
+import gmail_client
 import os
+import time
 import requests
 from urllib.parse import urlencode
 import secrets
+
+# Time-range pills → how many days back to include.
+RANGE_DAYS = {'1m': 31, '6m': 186, '1y': 372}
+# How long cached Gmail scans stay fresh before we re-scan.
+CACHE_TTL_SECONDS = 1800  # 30 minutes
 
 # --- Configuration (env-driven, with local-dev defaults) -------------------
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
@@ -164,27 +171,70 @@ def signout():
 
 @app.route('/getVenmoData')
 def get_venmo_data_route():
-    """Get Venmo data for authenticated user"""
+    """Get Venmo data for authenticated user.
+
+    Query params:
+      range:   '1m' | '6m' | '1y'  (default '6m')
+      refresh: '1' to bypass the cache and re-scan Gmail
+
+    A single 1-year Gmail scan is cached per user, then sliced to the
+    requested window — so switching range pills is instant.
+    """
     if 'user' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
     user_id = session['user']['id']
-    token_file, is_temp = token_store.materialize_token_file(user_id)
-    if not token_file:
-        return jsonify({'error': 'Gmail token not found. Please sign in again.'}), 404
+    range_param = request.args.get('range', '6m')
+    days = RANGE_DAYS.get(range_param, RANGE_DAYS['6m'])
+    force_refresh = request.args.get('refresh') == '1'
+
+    cache = token_store.get_cache(user_id)
+    is_fresh = (
+        not force_refresh
+        and cache is not None
+        and (time.time() - cache.get('fetchedAt', 0)) < CACHE_TTL_SECONDS
+    )
 
     try:
-        obj = get_venmo_data(token_file=token_file)
-        # simplegmail may refresh the access token and rewrite the creds file;
-        # persist any refresh back to the store.
-        token_store.persist_refreshed_token(user_id, token_file)
-        return jsonify(obj)
+        if is_fresh:
+            full = cache['data']
+        else:
+            token = token_store.load_token(user_id)
+            if not token:
+                return jsonify({'error': 'Gmail token not found. Please sign in again.'}), 404
+            service, creds = gmail_client.build_service(token)
+            full = read_emails.fetch_transactions(service, months=12)
+            # the access token may have been refreshed during the fetch;
+            # persist it back so we keep using a valid token.
+            updated = gmail_client.token_from_creds(creds, token)
+            if updated.get('access_token') != token.get('access_token'):
+                token_store.save_token(user_id, updated)
+            token_store.save_cache(user_id, full)
+
+        windowed = read_emails.filter_window(full, days)
+        result = read_emails.aggregate_transactions(
+            windowed['requests'], windowed['allTransactions']
+        )
+        result['range'] = range_param
+        return jsonify(result)
     except Exception as e:
         print(f"Error processing Venmo data request: {str(e)}")
         return jsonify({'error': f'Failed to process request: {str(e)}'}), 500
-    finally:
-        if is_temp and os.path.exists(token_file):
-            os.remove(token_file)
+
+
+@app.route('/waitlist', methods=['POST'])
+def waitlist():
+    """Collect a request-access email from the sign-in page."""
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    if not email or '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'error': 'Please enter a valid email address.'}), 400
+    try:
+        token_store.add_waitlist_email(email)
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Waitlist error: {str(e)}")
+        return jsonify({'error': 'Could not save your email. Please try again.'}), 500
 
 
 @app.route('/')

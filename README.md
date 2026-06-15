@@ -33,23 +33,30 @@ Three pieces, each independently deployable:
 │   (Vercel)      │ ◄───── │    (Render)      │         └──────────────────┘
 └─────────────────┘  JSON  └──────────────────┘
                                     │
-                                    │ stores login tokens
                                     ▼
-                            ┌──────────────────┐
-                            │  MongoDB Atlas   │
-                            │  (gmail tokens)  │
-                            └──────────────────┘
+                            ┌──────────────────────────────┐
+                            │        MongoDB Atlas          │
+                            │  gmail_tokens · venmo_cache   │
+                            │           waitlist            │
+                            └──────────────────────────────┘
 ```
 
 | Layer | Tech | Job |
 | --- | --- | --- |
 | **Frontend** | React 19, Vite, Material-UI (`@mui/x-charts`) | The dashboard UI and charts. Talks to the backend over HTTP. |
 | **Backend** | Python, Flask | Handles Google sign-in, reads Gmail, parses Venmo emails into stats, serves JSON. |
-| **Data source** | Gmail API (via `simplegmail`) | The "database" of transactions — every Venmo email is a record. |
-| **Token storage** | MongoDB Atlas | Remembers each user's Google login token so they don't re-authorize every visit. |
+| **Gmail access** | `google-api-python-client` + `google-auth` (see `backend/gmail_client.py`) | Authenticates with the stored token and fetches Venmo emails. |
+| **Data source** | Gmail | The source of truth for transactions — every Venmo email is a record. |
+| **Storage** | MongoDB Atlas | Three collections (below). |
 | **Auth** | Google OAuth 2.0 (`gmail.readonly` scope) | Read-only access to the user's email. |
 
-There is **no traditional transactions database** — Gmail *is* the source of truth. The only thing stored is each user's OAuth token.
+There is **no traditional transactions database** — Gmail *is* the source of truth. MongoDB stores only supporting data, in three collections:
+
+| Collection | Holds | Why |
+| --- | --- | --- |
+| `gmail_tokens` | each user's OAuth token (access + refresh token, client id/secret, scopes) | Lets the backend read a user's Gmail without making them sign in again every visit. The long-lived **refresh token** is what keeps access alive after the hourly access token expires. |
+| `venmo_cache` | the parsed 1-year transaction set per user, with a timestamp | Caching: one Gmail scan is reused for 30 minutes and sliced into the 1M/6M/1Y views, so loads/range-switches are instant. |
+| `waitlist` | request-access emails submitted on the sign-in page | The app is in Google "Testing" mode (≤100 users), so these are people asking to be added as test users. Collected only — approval is manual (see below). |
 
 ---
 
@@ -59,28 +66,36 @@ There is **no traditional transactions database** — Gmail *is* the source of t
 
 1. User clicks **Sign in with Google** in the frontend. This opens a popup to the backend's `/auth/signin/google` ([backend/server.py](backend/server.py)).
 2. The backend redirects the popup to Google's consent screen, asking for read-only Gmail access.
-3. Google sends the user back to `/auth/callback/google` with a code. The backend swaps that code for an access token + refresh token.
-4. The backend saves the token (to MongoDB in production, to a local file in dev) via [backend/token_store.py](backend/token_store.py), creates a session, and closes the popup.
+3. Google sends the user back to `/auth/callback/google` with a code. The backend swaps that code for an **access token + refresh token**.
+4. The backend saves the token to the `gmail_tokens` collection (MongoDB in prod, a local file in dev) via [backend/token_store.py](backend/token_store.py), creates a session cookie, and closes the popup.
 5. The frontend's `AuthContext` ([frontend/src/contexts/AuthContext.jsx](frontend/src/contexts/AuthContext.jsx)) detects success and loads the user.
+
+Two things now persist the login: the **session cookie** ("logged into our app") and the stored **refresh token** ("we can still reach your Gmail"). The refresh token lets the backend mint fresh access tokens automatically, so users don't re-consent every visit.
 
 ### Loading the dashboard
 
-1. Once logged in, the dashboard ([frontend/src/pages/Dashboard/Dashboard.jsx](frontend/src/pages/Dashboard/Dashboard.jsx)) calls the backend's `/getVenmoData`.
-2. The backend looks up the user's stored token, hands it to `get_venmo_data()` in [backend/read_emails.py](backend/read_emails.py).
-3. `read_emails.py` queries Gmail for four kinds of Venmo emails (you paid / someone paid you / requests / completed charge requests) using the search patterns in [backend/constants.py](backend/constants.py), then runs regexes over each email's subject and preview text to pull out the name, amount, and item.
-4. It aggregates everything into stats (top payers, monthly totals, average payback time) and returns one JSON object.
-5. The frontend renders that JSON as cards, bar/line charts, and a transaction table.
+1. Once logged in, the dashboard ([frontend/src/pages/Dashboard/Dashboard.jsx](frontend/src/pages/Dashboard/Dashboard.jsx)) calls `/getVenmoData?range=1m|6m|1y`.
+2. **Cache check:** if this user's `venmo_cache` entry is < 30 min old, the backend slices it to the requested range and returns immediately (no Gmail call). `?refresh=1` forces a re-scan.
+3. **On a miss:** `load_token()` reads the user's token, `gmail_client.build_service()` builds Google credentials in memory, and `read_emails.fetch_transactions()` scans a full year of Gmail. If the access token was refreshed mid-scan, the updated token is written back to `gmail_tokens`. The full result is cached to `venmo_cache`.
+4. `read_emails.py` queries Gmail for four kinds of Venmo emails (you paid / someone paid you / requests / completed charge requests) using the patterns in [backend/constants.py](backend/constants.py), runs regexes over each email's subject/snippet to extract name, amount, item, and **matches each request to the earliest payment at or after it** to compute payback time.
+5. It aggregates into stats (top payers, monthly totals, average payback time) and returns one JSON object, which the frontend renders as cards, charts, and a table.
+
+### Requesting access (waitlist)
+
+The sign-in page has a "Request access" form. Submitting an email POSTs to `/waitlist`, which stores it in the `waitlist` collection. It only **collects** — granting access is manual (add the email as a Google test user). See [Managing access](#managing-access-the-waitlist).
 
 ### Where to look for what
 
 | You want to change... | Look in |
 | --- | --- |
-| The dashboard layout/charts | `frontend/src/pages/Dashboard/Dashboard.jsx` |
+| The dashboard layout / charts / range pills | `frontend/src/pages/Dashboard/Dashboard.jsx` |
+| Sign-in page + request-access form | `frontend/src/pages/SignIn/SignIn.jsx` |
 | Sign-in / sign-out behavior | `frontend/src/contexts/AuthContext.jsx` |
 | Which backend URL the frontend hits | `frontend/src/config.js` |
-| OAuth flow, API endpoints | `backend/server.py` |
-| How Venmo emails are parsed | `backend/read_emails.py` + `backend/constants.py` |
-| Where login tokens are stored | `backend/token_store.py` |
+| OAuth flow, API endpoints, caching | `backend/server.py` |
+| Gmail auth + fetching (Google API) | `backend/gmail_client.py` |
+| How Venmo emails are parsed + payback matching | `backend/read_emails.py` + `backend/constants.py` |
+| Token / cache / waitlist storage | `backend/token_store.py` |
 
 ---
 
@@ -90,7 +105,8 @@ Config/infrastructure files that may look unfamiliar:
 
 | File | Why it's here |
 | --- | --- |
-| `backend/token_store.py` | Saves/loads Google tokens. Uses MongoDB when `MONGODB_URI` is set, otherwise local files — so the same code runs in production and locally. |
+| `backend/gmail_client.py` | Gmail data layer on Google's official libraries — builds credentials from the stored token (in memory), builds the search query, and fetches messages with rate-limit retry. |
+| `backend/token_store.py` | Saves/loads Google tokens, cached data, and waitlist emails. Uses MongoDB when `MONGODB_URI` is set, otherwise local files — so the same code runs in production and locally. |
 | `backend/Procfile` | Tells the host (Render) how to start the app: `gunicorn server:app`. |
 | `backend/.env.example` | Documents every environment variable the backend needs (no secrets in it). Copy it to `.env` and fill in. |
 | `frontend/config.js` | Single place that defines the backend URL (`VITE_API_URL` in prod, `localhost:8000` in dev). |
@@ -105,7 +121,7 @@ These are committed so that **anyone (or any host) checking out the repo has eve
 ## Running locally
 
 ### Prerequisites
-- Python 3.12 (3.14 may have issues with the older `oauth2client` dependency)
+- Python 3.12+ (3.12 recommended)
 - Node.js 18+
 - A Google OAuth client ID + secret ([Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials), with `http://localhost:8000/auth/callback/google` listed as an authorized redirect URI.
 
@@ -156,9 +172,23 @@ See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full walkthrough (Vercel frontend
 
 ---
 
+## Managing access (the waitlist)
+
+The app runs in Google OAuth **Testing** mode, which allows up to 100 manually-approved users. Only Gmail accounts added as **test users** in the Google Cloud consent screen can sign in.
+
+The sign-in page's "Request access" form collects emails into the `waitlist` collection, but **does not grant access**. To approve people:
+
+1. In MongoDB Atlas → `venmo` → `waitlist` → **Browse Collections**, view submitted emails (`{ _id: email, created: timestamp }`).
+2. Google Cloud Console → **OAuth consent screen** → **Test users** → **Add users** → paste the emails.
+3. (Optional) email them to say they're in.
+
+There's no notification yet — you check the collection periodically. Fully public access (no per-user approval) would require Google's restricted-scope verification + annual security assessment.
+
 ## Known limitations / future work
 
 - **Email parsing is regex-based** — if Venmo changes its email format, the patterns in `read_emails.py` need updating.
-- **No caching** — every dashboard load re-scans ~6 months of Gmail. Caching results in MongoDB would cut latency and API usage.
-- **`simplegmail` / `oauth2client` are deprecated** — a future migration to `google-api-python-client` would modernize the auth/token handling.
 - **Public access requires Google verification** — reading Gmail uses a *restricted* OAuth scope, so opening it beyond 100 users would require Google's verification + annual security assessment.
+
+### Recently addressed
+- **Caching** — a single 1-year Gmail scan is cached per user in MongoDB (`venmo_cache`) for 30 minutes and sliced into the 1M/6M/1Y views, so range switches are instant. Force a re-scan with `?refresh=1`.
+- **Gmail access library** — migrated off the deprecated `simplegmail` / `oauth2client` to Google's official `google-api-python-client` + `google-auth` (see `gmail_client.py`). Credentials are held in memory (no on-disk creds file), and rate-limited fetches retry with backoff.

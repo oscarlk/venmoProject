@@ -1,7 +1,9 @@
-simplegmail
 flask
 flask-cors
 requests
 python-dotenv
 pymongo
 gunicorn
+google-api-python-client
+google-auth
+python-dateutil
