@@ -18,6 +18,7 @@ This app reads those Venmo receipt emails from your Gmail (with your permission,
 - **Spending trend** — money in, money out, and your net balance per month, over a selectable 1-month / 6-month / 1-year range
 - **Full transaction history** — every payment in a searchable table
 - **Leaderboard** — ranks everyone who uses the app by their average payback time
+- **Shareable** — a share button generates a public link (first names only) that anyone can view without an account, with a logo link-preview when posted
 
 You sign in with Google (one click), and the app does the rest. It never sees your password, can't send email, and only ever *reads* — nothing is changed in your inbox.
 
@@ -60,6 +61,8 @@ There is **no traditional transactions database** — Gmail *is* the source of t
 | `leaderboard` | each user's average payback time per range | Powers a cross-user leaderboard that ranks everyone who has signed in by how quickly they pay people back. Refreshed on each dashboard load. |
 | `waitlist` | request-access emails submitted on the sign-in page | Collected only — approval is manual (see below). |
 
+**Same-origin proxy:** in production the browser doesn't call Render directly. Vercel proxies `/api/*` to the backend (`frontend/vercel.json`), so everything looks like it comes from the Vercel domain. This keeps the session cookie **first-party** — required for sign-in on iOS Safari, which blocks third-party cookies — and sidesteps CORS. The OAuth callback also runs through `/api`, so the cookie stays first-party across the whole Google round-trip. Locally there's no proxy; the frontend talks to `localhost:8000` directly.
+
 ---
 
 ## How the code flows
@@ -86,6 +89,10 @@ Two things now persist the login: the **session cookie** ("logged into our app")
 
 Each dashboard load also computes the signed-in user's average payback time for all three ranges and upserts it to the `leaderboard` collection (`token_store.save_leaderboard_entry`). The `/leaderboard?range=…` endpoint returns every user's entry sorted by payback time, which the dashboard renders as a ranked card. No extra Gmail scan — it reuses the data already fetched for the dashboard.
 
+### Sharing the leaderboard
+
+The leaderboard card has a **Share** button (`navigator.share` on mobile, copy-link fallback on desktop) that produces a public link like `…/l?range=6m`. That route (`PublicLeaderboard`) is **outside the auth guard** and fetches `GET /public/leaderboard` — a no-login endpoint that returns the ranking with **first names only** (full names never leave the backend). Open Graph tags in `index.html` give it a logo + 👀 link preview (`public/og-image.png`) when posted to iMessage/social. Because the preview image is static, the tags live in the HTML — no serverless OG function needed.
+
 ### Requesting access (waitlist)
 
 The sign-in page has a "Request access" form. Submitting an email POSTs to `/waitlist`, which stores it in the `waitlist` collection. It only **collects** — granting access is manual (add the email as a Google test user). See [Managing access](#managing-access-the-waitlist).
@@ -96,6 +103,8 @@ The sign-in page has a "Request access" form. Submitting an email POSTs to `/wai
 | --- | --- |
 | The dashboard layout / charts / range pills | `frontend/src/pages/Dashboard/Dashboard.jsx` |
 | Sign-in page + request-access form | `frontend/src/pages/SignIn/SignIn.jsx` |
+| Public share page + leaderboard card | `frontend/src/pages/PublicLeaderboard/` + `frontend/src/components/Leaderboard/LeaderboardCard.jsx` |
+| Link-preview tags + share image | `frontend/index.html` + `frontend/public/og-image.png` |
 | Sign-in / sign-out behavior | `frontend/src/contexts/AuthContext.jsx` |
 | Which backend URL the frontend hits | `frontend/src/config.js` |
 | OAuth flow, API endpoints, caching, leaderboard | `backend/server.py` |
