@@ -277,6 +277,21 @@ def aggregate_transactions(requests, all_transactions):
     }
 
 
+def payback_summary(full, range_days):
+    """Compute this user's average payback time for each range window.
+
+    `range_days` is a {label: days} map. Returns {label: {'avg': seconds|None,
+    'count': matched_requests}} — used to populate the cross-user leaderboard.
+    """
+    out = {}
+    for label, days in range_days.items():
+        windowed = filter_window(full, days)
+        matched = [r for r in windowed['requests'] if r['dateDifferenceSeconds'] is not None]
+        avg = sum(r['dateDifferenceSeconds'] for r in matched) / len(matched) if matched else None
+        out[label] = {'avg': avg, 'count': len(matched)}
+    return out
+
+
 def get_venmo_data(token, months=6):
     """Fetch + aggregate in one call (used for direct/local invocation).
 

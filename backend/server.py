@@ -216,10 +216,50 @@ def get_venmo_data_route():
             windowed['requests'], windowed['allTransactions']
         )
         result['range'] = range_param
+
+        # Keep this user's cross-user leaderboard entry fresh (all ranges).
+        try:
+            summary = read_emails.payback_summary(full, RANGE_DAYS)
+            name = session['user'].get('name') or session['user'].get('email', 'Unknown')
+            token_store.save_leaderboard_entry(user_id, name, summary)
+        except Exception as e:
+            print(f"Leaderboard update skipped: {str(e)}")
+
         return jsonify(result)
     except Exception as e:
         print(f"Error processing Venmo data request: {str(e)}")
         return jsonify({'error': f'Failed to process request: {str(e)}'}), 500
+
+
+@app.route('/leaderboard')
+def leaderboard():
+    """Rank all app users by their own average payback time (slowest first).
+
+    Query param: range '1m' | '6m' | '1y' (default '6m').
+    """
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    range_param = request.args.get('range', '6m')
+    if range_param not in RANGE_DAYS:
+        range_param = '6m'
+
+    me = session['user']['id']
+    ranked = []
+    for entry in token_store.get_leaderboard():
+        stats = (entry.get('paybacks') or {}).get(range_param) or {}
+        avg = stats.get('avg')
+        if avg is None or stats.get('count', 0) < 1:
+            continue
+        ranked.append({
+            'name': entry.get('name', 'Unknown'),
+            'averagePaybackTime': avg,
+            'count': stats.get('count', 0),
+            'isYou': entry.get('_id') == me,
+        })
+
+    ranked.sort(key=lambda x: x['averagePaybackTime'], reverse=True)
+    return jsonify({'range': range_param, 'leaderboard': ranked})
 
 
 @app.route('/waitlist', methods=['POST'])

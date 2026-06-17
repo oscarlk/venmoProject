@@ -15,8 +15,9 @@ This app reads those Venmo receipt emails from your Gmail (with your permission,
 - **Total transactions** — how many payments you've made and received
 - **Top people** — who you've paid the most, and who's paid you the most
 - **Average payback time** — when you request money, how long until people actually pay you
-- **6-month spending trend** — money in, money out, and your net balance per month
+- **Spending trend** — money in, money out, and your net balance per month, over a selectable 1-month / 6-month / 1-year range
 - **Full transaction history** — every payment in a searchable table
+- **Leaderboard** — ranks everyone who uses the app by their average payback time
 
 You sign in with Google (one click), and the app does the rest. It never sees your password, can't send email, and only ever *reads* — nothing is changed in your inbox.
 
@@ -34,11 +35,11 @@ Three pieces, each independently deployable:
 └─────────────────┘  JSON  └──────────────────┘
                                     │
                                     ▼
-                            ┌──────────────────────────────┐
-                            │        MongoDB Atlas          │
-                            │  gmail_tokens · venmo_cache   │
-                            │           waitlist            │
-                            └──────────────────────────────┘
+                            ┌──────────────────────────────────┐
+                            │          MongoDB Atlas            │
+                            │   gmail_tokens · venmo_cache      │
+                            │     waitlist · leaderboard        │
+                            └──────────────────────────────────┘
 ```
 
 | Layer | Tech | Job |
@@ -50,13 +51,14 @@ Three pieces, each independently deployable:
 | **Storage** | MongoDB Atlas | Three collections (below). |
 | **Auth** | Google OAuth 2.0 (`gmail.readonly` scope) | Read-only access to the user's email. |
 
-There is **no traditional transactions database** — Gmail *is* the source of truth. MongoDB stores only supporting data, in three collections:
+There is **no traditional transactions database** — Gmail *is* the source of truth. MongoDB stores only supporting data, in four collections:
 
 | Collection | Holds | Why |
 | --- | --- | --- |
 | `gmail_tokens` | each user's OAuth token (access + refresh token, client id/secret, scopes) | Lets the backend read a user's Gmail without making them sign in again every visit. The long-lived **refresh token** is what keeps access alive after the hourly access token expires. |
 | `venmo_cache` | the parsed 1-year transaction set per user, with a timestamp | Caching: one Gmail scan is reused for 30 minutes and sliced into the 1M/6M/1Y views, so loads/range-switches are instant. |
-| `waitlist` | request-access emails submitted on the sign-in page | The app is in Google "Testing" mode (≤100 users), so these are people asking to be added as test users. Collected only — approval is manual (see below). |
+| `leaderboard` | each user's average payback time per range | Powers a cross-user leaderboard that ranks everyone who has signed in by how quickly they pay people back. Refreshed on each dashboard load. |
+| `waitlist` | request-access emails submitted on the sign-in page | Collected only — approval is manual (see below). |
 
 ---
 
@@ -80,6 +82,10 @@ Two things now persist the login: the **session cookie** ("logged into our app")
 4. `read_emails.py` queries Gmail for four kinds of Venmo emails (you paid / someone paid you / requests / completed charge requests) using the patterns in [backend/constants.py](backend/constants.py), runs regexes over each email's subject/snippet to extract name, amount, item, and **matches each request to the earliest payment at or after it** to compute payback time.
 5. It aggregates into stats (top payers, monthly totals, average payback time) and returns one JSON object, which the frontend renders as cards, charts, and a table.
 
+### Leaderboard
+
+Each dashboard load also computes the signed-in user's average payback time for all three ranges and upserts it to the `leaderboard` collection (`token_store.save_leaderboard_entry`). The `/leaderboard?range=…` endpoint returns every user's entry sorted by payback time, which the dashboard renders as a ranked card. No extra Gmail scan — it reuses the data already fetched for the dashboard.
+
 ### Requesting access (waitlist)
 
 The sign-in page has a "Request access" form. Submitting an email POSTs to `/waitlist`, which stores it in the `waitlist` collection. It only **collects** — granting access is manual (add the email as a Google test user). See [Managing access](#managing-access-the-waitlist).
@@ -92,10 +98,10 @@ The sign-in page has a "Request access" form. Submitting an email POSTs to `/wai
 | Sign-in page + request-access form | `frontend/src/pages/SignIn/SignIn.jsx` |
 | Sign-in / sign-out behavior | `frontend/src/contexts/AuthContext.jsx` |
 | Which backend URL the frontend hits | `frontend/src/config.js` |
-| OAuth flow, API endpoints, caching | `backend/server.py` |
+| OAuth flow, API endpoints, caching, leaderboard | `backend/server.py` |
 | Gmail auth + fetching (Google API) | `backend/gmail_client.py` |
 | How Venmo emails are parsed + payback matching | `backend/read_emails.py` + `backend/constants.py` |
-| Token / cache / waitlist storage | `backend/token_store.py` |
+| Token / cache / leaderboard / waitlist storage | `backend/token_store.py` |
 
 ---
 

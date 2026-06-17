@@ -33,6 +33,7 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [range, setRange] = useState('6m');
+    const [leaderboard, setLeaderboard] = useState([]);
 
     const rangeLabels = { '1m': '1 Month', '6m': '6 Month', '1y': '1 Year' };
 
@@ -65,6 +66,21 @@ const Dashboard = () => {
         }
     }, [user, range]);
 
+    const fetchLeaderboard = async () => {
+        try {
+            const res = await fetch(`${API_URL}/leaderboard?range=${range}`, {
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (res.ok) {
+                const d = await res.json();
+                setLeaderboard(d.leaderboard || []);
+            }
+        } catch (err) {
+            console.error('Leaderboard fetch failed:', err);
+        }
+    };
+
     const fetchVenmoData = async () => {
         setLoading(true);
         setError(null);
@@ -84,6 +100,8 @@ const Dashboard = () => {
 
             const data = await response.json();
             setVenmoData(data);
+            // refresh leaderboard after our own entry is updated server-side
+            fetchLeaderboard();
         } catch (err) {
             setError(err.message);
             console.error('Error fetching Venmo data:', err);
@@ -158,6 +176,11 @@ const Dashboard = () => {
 
     const paybackTime = convertSeconds(averagePaybackTime);
 
+    const formatPayback = (secs) => {
+        const { days, hours, minutes, seconds } = convertSeconds(secs);
+        return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    };
+
     const hasData = allTransactions.length > 0;
     const formatDate = (d) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear().toString().slice(-2)}`;
     const formattedEarliestDate = hasData ? formatDate(new Date(allTransactions[allTransactions.length - 1].dateRequested)) : '';
@@ -200,6 +223,52 @@ const Dashboard = () => {
                 )}
 
                 {hasData && <Box sx={{ mt: 3, mb: 4,}} >
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
+                        {/* Leaderboard Row */}
+                        <Grid item size={{xs:12}}>
+                            <Card sx={{height: '100%'}}>
+                                <CardContent>
+                                    <Div>{"🏆 Biggest J'er"}</Div>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, px: 1 }}>
+                                        Glance users ranked by average payback time ({rangeLabels[range].toLowerCase()}) — slowest first.
+                                    </Typography>
+                                    {leaderboard.length === 0 ? (
+                                        <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>
+                                            No ranked users yet.
+                                        </Typography>
+                                    ) : (
+                                        leaderboard.map((u, i) => (
+                                            <Box
+                                                key={i}
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    py: 1,
+                                                    px: 1.5,
+                                                    borderRadius: 1,
+                                                    bgcolor: u.isYou ? 'rgba(0,140,255,0.08)' : 'transparent',
+                                                    borderBottom: i < leaderboard.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                                                }}
+                                            >
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                    <Typography sx={{ width: 28, textAlign: 'center', fontSize: '1.1rem' }}>
+                                                        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                                                    </Typography>
+                                                    <Typography sx={{ fontWeight: u.isYou ? 700 : 500 }}>
+                                                        {u.name}{u.isYou ? ' (you)' : ''}
+                                                    </Typography>
+                                                </Box>
+                                                <Typography sx={{ fontWeight: 600, color: '#008CFF' }}>
+                                                    {formatPayback(u.averagePaybackTime)}
+                                                </Typography>
+                                            </Box>
+                                        ))
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    </Grid>
                     <Grid container spacing={2}>
                         {/* Top Row */}
                         <Grid item size={{xs:12, sm:6, lg:3}}>

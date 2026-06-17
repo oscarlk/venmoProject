@@ -152,3 +152,37 @@ def save_cache(user_id, data):
         os.makedirs(_TOKENS_DIR, exist_ok=True)
         with open(os.path.join(_TOKENS_DIR, f'cache_{user_id}.json'), 'w') as f:
             json.dump(doc, f)
+
+
+_LEADERBOARD_FILE = 'leaderboard.json'
+
+
+def save_leaderboard_entry(user_id, name, paybacks):
+    """Upsert this user's leaderboard entry (per-range payback averages).
+
+    `paybacks` is {range: {'avg': seconds|None, 'count': int}}.
+    """
+    doc = {'_id': user_id, 'name': name, 'paybacks': paybacks, 'updatedAt': time.time()}
+    if USE_MONGO:
+        _get_db()['leaderboard'].replace_one({'_id': user_id}, doc, upsert=True)
+    else:
+        os.makedirs(_TOKENS_DIR, exist_ok=True)
+        path = os.path.join(_TOKENS_DIR, _LEADERBOARD_FILE)
+        entries = {}
+        if os.path.exists(path):
+            with open(path) as f:
+                entries = json.load(f)
+        entries[user_id] = doc
+        with open(path, 'w') as f:
+            json.dump(entries, f)
+
+
+def get_leaderboard():
+    """Return all leaderboard entry docs."""
+    if USE_MONGO:
+        return list(_get_db()['leaderboard'].find())
+    path = os.path.join(_TOKENS_DIR, _LEADERBOARD_FILE)
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        return list(json.load(f).values())
