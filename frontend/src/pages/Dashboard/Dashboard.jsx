@@ -17,6 +17,7 @@ import Divider from '@mui/material/Divider';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config';
+import LeaderboardCard from '../../components/Leaderboard/LeaderboardCard';
 
 const Div = styled('div')(({ theme }) => ({
     ...theme.typography.button,
@@ -34,6 +35,7 @@ const Dashboard = () => {
     const [error, setError] = useState(null);
     const [range, setRange] = useState('6m');
     const [leaderboard, setLeaderboard] = useState([]);
+    const [shareCopied, setShareCopied] = useState(false);
 
     const rangeLabels = { '1m': '1 Month', '6m': '6 Month', '1y': '1 Year' };
 
@@ -176,10 +178,36 @@ const Dashboard = () => {
 
     const paybackTime = convertSeconds(averagePaybackTime);
 
-    const formatPayback = (secs) => {
-        const { days, hours, minutes, seconds } = convertSeconds(secs);
-        return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    const handleShare = async () => {
+        const url = `${window.location.origin}/l?range=${range}`;
+        const shareData = {
+            title: "Glance — Biggest J'er leaderboard",
+            url,
+        };
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(url);
+                setShareCopied(true);
+                setTimeout(() => setShareCopied(false), 2000);
+            }
+        } catch (err) {
+            // user dismissed the share sheet — ignore
+        }
     };
+
+    const shareButton = (
+        <Button onClick={handleShare} size="small" sx={{ textTransform: 'none' }}
+            startIcon={
+                <Box component="svg" viewBox="0 0 24 24" sx={{ width: 18, height: 18, fill: 'currentColor' }}>
+                    <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z" />
+                </Box>
+            }
+        >
+            {shareCopied ? 'Link copied!' : 'Share'}
+        </Button>
+    );
 
     const hasData = allTransactions.length > 0;
     const formatDate = (d) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear().toString().slice(-2)}`;
@@ -226,47 +254,7 @@ const Dashboard = () => {
                     <Grid container spacing={2} sx={{ mb: 2 }}>
                         {/* Leaderboard Row */}
                         <Grid item size={{xs:12}}>
-                            <Card sx={{height: '100%'}}>
-                                <CardContent>
-                                    <Div>{"🏆 Biggest J'er"}</Div>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, px: 1 }}>
-                                        Glance users ranked by average payback time ({rangeLabels[range].toLowerCase()}) — slowest first.
-                                    </Typography>
-                                    {leaderboard.length === 0 ? (
-                                        <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>
-                                            No ranked users yet.
-                                        </Typography>
-                                    ) : (
-                                        leaderboard.map((u, i) => (
-                                            <Box
-                                                key={i}
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    py: 1,
-                                                    px: 1.5,
-                                                    borderRadius: 1,
-                                                    bgcolor: u.isYou ? 'rgba(0,140,255,0.08)' : 'transparent',
-                                                    borderBottom: i < leaderboard.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
-                                                }}
-                                            >
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                    <Typography sx={{ width: 28, textAlign: 'center', fontSize: '1.1rem' }}>
-                                                        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
-                                                    </Typography>
-                                                    <Typography sx={{ fontWeight: u.isYou ? 700 : 500 }}>
-                                                        {u.name}{u.isYou ? ' (you)' : ''}
-                                                    </Typography>
-                                                </Box>
-                                                <Typography sx={{ fontWeight: 600, color: '#008CFF' }}>
-                                                    {formatPayback(u.averagePaybackTime)}
-                                                </Typography>
-                                            </Box>
-                                        ))
-                                    )}
-                                </CardContent>
-                            </Card>
+                            <LeaderboardCard entries={leaderboard} range={range} action={shareButton} />
                         </Grid>
                     </Grid>
                     <Grid container spacing={2}>

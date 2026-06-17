@@ -262,6 +262,31 @@ def leaderboard():
     return jsonify({'range': range_param, 'leaderboard': ranked})
 
 
+@app.route('/public/leaderboard')
+def public_leaderboard():
+    """Public, no-auth leaderboard for sharing. First names only for privacy."""
+    range_param = request.args.get('range', '6m')
+    if range_param not in RANGE_DAYS:
+        range_param = '6m'
+
+    ranked = []
+    for entry in token_store.get_leaderboard():
+        stats = (entry.get('paybacks') or {}).get(range_param) or {}
+        avg = stats.get('avg')
+        if avg is None or stats.get('count', 0) < 1:
+            continue
+        full_name = (entry.get('name') or 'Unknown').strip()
+        first_name = full_name.split()[0] if full_name else 'Unknown'
+        ranked.append({
+            'name': first_name,
+            'averagePaybackTime': avg,
+            'count': stats.get('count', 0),
+        })
+
+    ranked.sort(key=lambda x: x['averagePaybackTime'], reverse=True)
+    return jsonify({'range': range_param, 'leaderboard': ranked})
+
+
 @app.route('/waitlist', methods=['POST'])
 def waitlist():
     """Collect a request-access email from the sign-in page."""
