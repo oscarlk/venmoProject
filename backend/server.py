@@ -302,6 +302,43 @@ def waitlist():
         return jsonify({'error': 'Could not save your email. Please try again.'}), 500
 
 
+@app.route('/admin/diagnose')
+def admin_diagnose():
+    """Count-only debug for a user's Venmo email parsing. Admin-gated.
+
+    Usage: /admin/diagnose?email=<user_email>&key=<ADMIN_KEY>
+    Reports raw vs parsed match counts per query — no email content.
+    """
+    # 1) Gate: this reads a user's Gmail, so require the secret ADMIN_KEY.
+    #    If ADMIN_KEY isn't set in the environment, the endpoint is disabled.
+    admin_key = os.environ.get('ADMIN_KEY')
+    if not admin_key or request.args.get('key') != admin_key:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    # 2) Figure out which user to inspect. Accept either ?user=<db id> (the
+    #    sanitized id as stored in Mongo) or ?email=<address> (sanitized here).
+    email = request.args.get('email', '')
+    user_id = request.args.get('user') or email.replace('@', '_').replace('.', '_')
+    if not user_id:
+        return jsonify({'error': 'Missing user or email param'}), 400
+
+    # 3) Load that user's stored OAuth token (the one the app saved at sign-in).
+    token = token_store.load_token(user_id)
+    if not token:
+        return jsonify({'error': f'No stored token for {user_id}'}), 404
+
+    # 4) Build a Gmail client with their token and run the count-only
+    #    diagnostic (no email content is returned — just match counts).
+    try:
+        service, _ = gmail_client.build_service(token)
+        result = read_emails.diagnose(service, months=12)
+        result['user'] = user_id
+        return jsonify(result)
+    except Exception as e:
+        print(f"Diagnose error: {str(e)}")
+        return jsonify({'error': f'Failed: {str(e)}'}), 500
+
+
 @app.route('/')
 def home():
     return "Venmo Analytics Backend - Ready to serve!"
