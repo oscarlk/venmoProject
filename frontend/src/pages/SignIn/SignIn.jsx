@@ -11,6 +11,8 @@ const SignIn = () => {
   const { user, loading, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
 
+  // State + handler below power the request-access waitlist, which is currently
+  // commented out in the JSX (see note there). Kept so it's easy to re-enable.
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('idle'); // idle | submitting | success | error
   const [errorMsg, setErrorMsg] = useState('');
@@ -88,6 +90,12 @@ const SignIn = () => {
             Sign in with Google
         </Button>
 
+        {/*
+          Request-access waitlist — hidden for now. The app is in Google
+          "Production" mode, so anyone can sign in until the 100-user cap; a
+          waitlist only makes sense once we approach that cap. To bring it back,
+          uncomment this block (it posts to the backend /waitlist endpoint).
+
         <Box
             sx={{
                 width: '100%',
@@ -103,12 +111,12 @@ const SignIn = () => {
                 Not on the list yet?
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Glance is invite-only for now. Drop your Gmail and we&apos;ll email you once you&apos;re added.
+                Glance is invite-only for now. Drop your Gmail and we'll email you once you're added.
             </Typography>
 
             {status === 'success' ? (
                 <Alert severity="success" sx={{ textAlign: 'left' }}>
-                    You&apos;re on the list! We&apos;ll reach out at that email once you&apos;re added.
+                    You're on the list! We'll reach out at that email once you're added.
                 </Alert>
             ) : (
                 <Box
@@ -142,6 +150,7 @@ const SignIn = () => {
                 </Box>
             )}
         </Box>
+        */}
     </Container>
   )
 }

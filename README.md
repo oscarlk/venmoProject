@@ -15,7 +15,7 @@ This app reads those Venmo receipt emails from your Gmail (with your permission,
 - **Total transactions** — how many payments you've made and received
 - **Top people** — who you've paid the most, and who's paid you the most
 - **Average payback time** — when you request money, how long until people actually pay you
-- **Spending trend** — money in, money out, and your net balance per month, over a selectable 1-month / 6-month / 1-year range
+- **Spending trend** — money in, money out, and your net balance per month, over a selectable 1-month / 6-month / 1-year range (toggle which lines to show; starts on net total)
 - **Full transaction history** — every payment in a searchable table
 - **Leaderboard** — ranks everyone who uses the app by their average payback time
 - **Shareable** — a share button generates a public link (first names only) that anyone can view without an account, with a logo link-preview when posted
@@ -93,9 +93,9 @@ Each dashboard load also computes the signed-in user's average payback time for 
 
 The leaderboard card has a **Share** button (`navigator.share` on mobile, copy-link fallback on desktop) that produces a public link like `…/l?range=6m`. That route (`PublicLeaderboard`) is **outside the auth guard** and fetches `GET /public/leaderboard` — a no-login endpoint that returns the ranking with **first names only** (full names never leave the backend). Open Graph tags in `index.html` give it a logo + 👀 link preview (`public/og-image.png`) when posted to iMessage/social. Because the preview image is static, the tags live in the HTML — no serverless OG function needed.
 
-### Requesting access (waitlist)
+### Requesting access (waitlist) — currently disabled
 
-The sign-in page has a "Request access" form. Submitting an email POSTs to `/waitlist`, which stores it in the `waitlist` collection. It only **collects** — granting access is manual (add the email as a Google test user). See [Managing access](#managing-access-the-waitlist).
+The OAuth app is in Google **Production** mode, so anyone can sign in (up to the 100-user cap) without being manually approved. The "Request access" form on the sign-in page is therefore **commented out** in `SignIn.jsx` — it would only make sense once approaching the cap. The backend `/waitlist` endpoint and `waitlist` collection remain in place so the form can be re-enabled by uncommenting it. See [Managing access](#managing-access-the-waitlist).
 
 ### Where to look for what
 
@@ -177,7 +177,7 @@ npm run dev                       # runs on http://localhost:5173
 ### Try it
 Open http://localhost:5173, click **Sign in with Google**, authorize, and the dashboard loads your Venmo stats.
 
-> Note: while the Google app is in "Testing" mode, only Gmail accounts added as **test users** in the Google Cloud consent screen can sign in.
+> Note: the Google app uses a restricted scope and is **unverified**, so on first sign-in users see an "app isn't verified" warning — click **Advanced → Continue** to proceed.
 
 ---
 
@@ -187,17 +187,11 @@ See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full walkthrough (Vercel frontend
 
 ---
 
-## Managing access (the waitlist)
+## Managing access
 
-The app runs in Google OAuth **Testing** mode, which allows up to 100 manually-approved users. Only Gmail accounts added as **test users** in the Google Cloud consent screen can sign in.
+The app runs in Google OAuth **Production** mode with a `gmail.readonly` (restricted) scope. Because it's unverified, Google enforces a **100-user lifetime cap** (can't be reset) and shows an "app isn't verified" warning on first sign-in. Within that cap, **anyone can sign in self-serve** — there's no test-user list to maintain.
 
-The sign-in page's "Request access" form collects emails into the `waitlist` collection, but **does not grant access**. To approve people:
-
-1. In MongoDB Atlas → `venmo` → `waitlist` → **Browse Collections**, view submitted emails (`{ _id: email, created: timestamp }`).
-2. Google Cloud Console → **OAuth consent screen** → **Test users** → **Add users** → paste the emails.
-3. (Optional) email them to say they're in.
-
-There's no notification yet — you check the collection periodically. Fully public access (no per-user approval) would require Google's restricted-scope verification + annual security assessment.
+The `waitlist` collection + `/waitlist` endpoint exist for when you approach the cap (collect emails, decide whether to pursue verification), but the sign-in form that feeds them is currently commented out since no one needs to wait. Going past 100 users / removing the warning requires Google's restricted-scope verification + an annual security assessment.
 
 ## Known limitations / future work
 

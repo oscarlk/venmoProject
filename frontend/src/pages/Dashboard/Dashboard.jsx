@@ -36,6 +36,7 @@ const Dashboard = () => {
     const [range, setRange] = useState('6m');
     const [leaderboard, setLeaderboard] = useState([]);
     const [shareCopied, setShareCopied] = useState(false);
+    const [chartMetrics, setChartMetrics] = useState(['net']); // which lines to show
 
     const rangeLabels = { '1m': '1 Month', '6m': '6 Month', '1y': '1 Year' };
 
@@ -61,6 +62,21 @@ const Dashboard = () => {
     const moneySpent = monthlyTotals.map(item => -1 * item.moneySpent);
     const moneyReceived = monthlyTotals.map(item => item.moneyReceived);
     const totalBalance = monthlyTotals.map(item => item.totalBalance);
+
+    // Toggleable lines for the spending chart (starts with just Net Total).
+    const chartMetricOrder = ['net', 'in', 'out'];
+    const chartMetricDefs = {
+        net: { label: 'Net Total', color: '#008CFF', data: totalBalance },
+        in:  { label: 'Money In',  color: 'green',   data: moneyReceived },
+        out: { label: 'Money Out', color: 'red',     data: moneySpent },
+    };
+    const toggleChartMetric = (id) => {
+        setChartMetrics((prev) =>
+            prev.includes(id)
+                ? (prev.length > 1 ? prev.filter((m) => m !== id) : prev) // keep ≥1 line
+                : [...prev, id]
+        );
+    };
 
     useEffect(() => {
         if (user) {
@@ -344,34 +360,44 @@ const Dashboard = () => {
                             <Card sx={{height: '100%'}}>
                                 <CardContent>
                                     <Div>{`Your ${rangeLabels[range]} Spending Totals`}</Div>
+                                    <Box sx={{ display: 'flex', gap: 1, mt: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                                        {chartMetricOrder.map((id) => {
+                                            const m = chartMetricDefs[id];
+                                            const active = chartMetrics.includes(id);
+                                            return (
+                                                <Chip
+                                                    key={id}
+                                                    label={m.label}
+                                                    size="small"
+                                                    onClick={() => toggleChartMetric(id)}
+                                                    variant={active ? 'filled' : 'outlined'}
+                                                    sx={{
+                                                        fontWeight: 600,
+                                                        borderColor: m.color,
+                                                        color: active ? '#fff' : m.color,
+                                                        backgroundColor: active ? m.color : 'transparent',
+                                                        '&:hover': { backgroundColor: active ? m.color : 'rgba(0,0,0,0.04)' },
+                                                    }}
+                                                />
+                                            );
+                                        })}
+                                    </Box>
                                     <LineChart
                                         xAxis={[{
                                             scaleType: "point",
                                             data: months,
                                         }]}
-                                        series={[
-                                            {
+                                        series={chartMetricOrder
+                                            .filter((id) => chartMetrics.includes(id))
+                                            .map((id) => ({
                                                 curve: "linear",
-                                                data: moneySpent,
-                                                label: "Money Spent",
-                                                color: "red",
-                                            },
-                                            {
-                                                curve: "linear",
-                                                data: moneyReceived,
-                                                label: "Money Recieved",
-                                                color: "green"
-                                            },
-                                            {
-                                                curve: "linear",
-                                                data: totalBalance,
-                                                label: "Net Total",
-                                                color: "#008CFF"
-                                            },
-                                        ]}
+                                                data: chartMetricDefs[id].data,
+                                                label: chartMetricDefs[id].label,
+                                                color: chartMetricDefs[id].color,
+                                            }))}
                                         height={300}
                                         grid={{ vertical: true, horizontal: true }}
-                                        legend={{ hidden: false }}
+                                        legend={{ hidden: true }}
                                     />
                                 </CardContent>
                             </Card>

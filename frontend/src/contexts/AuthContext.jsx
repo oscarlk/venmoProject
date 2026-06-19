@@ -25,10 +25,17 @@ export const AuthProvider = ({ children }) => {
         'width=500,height=600,scrollbars=yes,resizable=yes'
       )
       
+      // The popup posts back from the backend's origin. With the Vercel /api
+      // proxy, API_URL is relative ('/api') and the popup is same-origin as the
+      // app; in local dev API_URL is an absolute URL (http://localhost:8000).
+      const expectedOrigin = API_URL.startsWith('http')
+        ? new URL(API_URL).origin
+        : window.location.origin
+
       // Listen for messages from popup
       const handleMessage = (event) => {
-        // Only accept messages from our backend
-        if (event.origin !== API_URL) return
+        // Only accept messages from our backend's origin
+        if (event.origin !== expectedOrigin) return
         
         if (event.data.type === 'success') {
           popup.close()
