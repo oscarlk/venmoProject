@@ -111,7 +111,6 @@ The sign-in page has a "Request access" form. Submitting an email POSTs to `/wai
 | Gmail auth + fetching (Google API) | `backend/gmail_client.py` |
 | How Venmo emails are parsed + payback matching | `backend/read_emails.py` + `backend/constants.py` |
 | Token / cache / leaderboard / waitlist storage | `backend/token_store.py` |
-| Debug a user's email parsing (admin-gated, counts only) | `backend/server.py` `/admin/diagnose` + `read_emails.diagnose` |
 
 ---
 

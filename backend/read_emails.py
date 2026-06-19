@@ -277,44 +277,6 @@ def aggregate_transactions(requests, all_transactions):
     }
 
 
-def diagnose(service, months=12):
-    """Count-only diagnostic: how many emails each query matched (raw) vs how
-    many parsed successfully. Lets you tell "user has no request emails" apart
-    from "request emails exist but failed to parse" — without reading content.
-
-    For each of the four Venmo email types we report:
-      raw    = how many emails Gmail's search returned for that type
-      parsed = how many of those the regex could actually extract data from
-    A big gap (raw >> parsed) means a parsing bug; raw == 0 means the user
-    simply has none of that email type.
-    """
-    # 1) Run the exact same four Gmail searches the dashboard uses. The result
-    #    length is the "raw" count — how many emails matched each search.
-    req_msgs = gmail_client.search_messages(service, build_query(_windowed(REQUEST_QUERY_PARAMS, months)))
-    pay_msgs = gmail_client.search_messages(service, build_query(_windowed(PAYMENT_QUERY_PARAMS, months)))
-    paid_msgs = gmail_client.search_messages(service, build_query(_windowed(PAID_QUERY_PARAMS, months)))
-    charge_msgs = gmail_client.search_messages(service, build_query(_windowed(PAID_CHARGE_QUERY_PARAMS, months)))
-
-    # Regexes for the two email types that don't have a standalone parser
-    # helper — we just re-check whether each subject would match.
-    paid_name = re.compile(r"You paid ([\w\s]+) \$([\d,.]+)")
-    charge_name = re.compile(r"You completed (.+?)'s \$[\d.]+? charge request")
-    charge_amt = re.compile(r"\$(\d+(?:\.\d{2})?)")
-
-    # 2) "parsed" = run the real parsers / regexes over those emails and count
-    #    how many produced a usable record. (extact_payments wants a list to
-    #    append transactions to; we pass a throwaway [] since we only want the
-    #    count.) raw minus parsed = emails that matched the search but the
-    #    regex couldn't read.
-    return {
-        'months': months,
-        'request':     {'raw': len(req_msgs),    'parsed': len(extract_requests(req_msgs))},
-        'payment':     {'raw': len(pay_msgs),    'parsed': len(extact_payments(pay_msgs, []))},
-        'paid':        {'raw': len(paid_msgs),   'parsed': sum(1 for m in paid_msgs if paid_name.search(m.subject))},
-        'paid_charge': {'raw': len(charge_msgs), 'parsed': sum(1 for m in charge_msgs if charge_name.search(m.subject) and charge_amt.search(m.subject))},
-    }
-
-
 def payback_summary(full, range_days):
     """Compute this user's average payback time for each range window.
 

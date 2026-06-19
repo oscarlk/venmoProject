@@ -68,7 +68,6 @@ Credentials):
    | `MONGODB_URI` | from Atlas |
    | `MONGODB_DB` | `venmo` |
    | `FLASK_DEBUG` | `false` |
-   | `ADMIN_KEY` | strong random secret; enables the `/admin/diagnose` debug endpoint (leave unset to disable it) |
 
    `FRONTEND_URL` being `https://` enables `SameSite=None; Secure` cookies and
    sets the CORS origin. Note `GOOGLE_REDIRECT_URI` points at the **Vercel /api**
